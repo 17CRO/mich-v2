@@ -40,6 +40,21 @@ main#page-container {
     gap: 1rem;
 }
 
+#nav-mobile-greeting,
+#mobile-main-welcome {
+    min-height: 1.5rem;
+}
+
+@media (min-width: 1024px) {
+    body[data-role="admin"] #nav-tab-scanner {
+        display: none !important;
+    }
+}
+
+.nav-tab-group::-webkit-scrollbar {
+    display: none;
+}
+
 .hamburger-button {
     width: 2.75rem;
     height: 2.75rem;
@@ -139,6 +154,66 @@ input[type=number] {
     background-repeat: no-repeat;
     background-size: 1.25em 1.25em;
     padding-right: 2.5rem; /* Espace pour l'icône */
+}
+
+.form-multiselect {
+    width: 100%;
+}
+
+.form-multiselect[data-choices-active="true"] {
+    opacity: 0;
+    position: absolute;
+    pointer-events: none;
+}
+
+.choices {
+    margin-bottom: 0;
+}
+
+.choices__inner {
+    border-radius: 0.75rem;
+    border: 1px solid #D1D5DB;
+    padding: 0.65rem 0.75rem;
+    min-height: 3.25rem;
+    background: white;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.04);
+}
+
+.choices__list--multiple .choices__item {
+    background-color: rgba(0, 89, 78, 0.08);
+    border: 1px solid rgba(0, 89, 78, 0.15);
+    color: var(--color-primary);
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 0.75rem;
+}
+
+.choices__list--dropdown .choices__item--selectable.is-highlighted {
+    background-color: rgba(229, 106, 84, 0.1);
+    color: var(--color-primary);
+}
+
+.date-preset-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0.5rem;
+}
+
+.date-preset-grid button {
+    border: 1px dashed rgba(0, 89, 78, 0.3);
+    border-radius: 999px;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-primary);
+    transition: all 0.2s ease;
+    background: rgba(0, 89, 78, 0.05);
+}
+
+.date-preset-grid button:hover,
+.date-preset-grid button:focus-visible {
+    background: rgba(229, 106, 84, 0.12);
+    border-color: rgba(229, 106, 84, 0.4);
 }
 
 /* Style des boutons (CSS standard) */
@@ -426,6 +501,118 @@ footer#site-footer {
 
 body[data-role="admin"] .admin-only-mobile {
     display: inline-flex;
+}
+
+.analytics-kpi {
+    background: linear-gradient(135deg, rgba(0, 89, 78, 0.08), rgba(229, 106, 84, 0.08));
+    border: 1px solid rgba(0, 89, 78, 0.15);
+    border-radius: 1rem;
+    padding: 1.25rem;
+}
+
+.analytics-kpi-label {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3em;
+    color: #6B7280;
+}
+
+.analytics-kpi-value {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--color-primary);
+}
+
+.analytics-mini-chart {
+    background: #F9FAFB;
+    border: 1px solid #E5E7EB;
+    border-radius: 1rem;
+    padding: 1rem;
+    min-height: 220px;
+}
+
+.analytics-mini-title {
+    font-weight: 600;
+    color: var(--color-primary);
+    margin-bottom: 0.5rem;
+}
+
+.form-builder-panel {
+    background: linear-gradient(135deg, rgba(0, 89, 78, 0.04), rgba(229, 106, 84, 0.05));
+}
+
+.form-builder-label {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--color-primary);
+}
+
+.form-builder-helper {
+    font-size: 0.85rem;
+    color: #6B7280;
+    margin-bottom: 0.5rem;
+}
+
+.form-builder-input {
+    font-size: 1rem;
+    padding: 0.85rem 1rem;
+}
+
+.form-builder-action {
+    width: 100%;
+    background: white;
+    border: 2px dashed rgba(0, 89, 78, 0.3);
+    color: var(--color-primary);
+    border-radius: 1rem;
+    font-weight: 700;
+    padding: 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.form-builder-action:hover {
+    background: rgba(0, 89, 78, 0.05);
+    border-color: var(--color-primary);
+}
+
+.report-store-card {
+    border: 1px solid rgba(0, 89, 78, 0.15);
+    border-radius: 1.25rem;
+    overflow: hidden;
+    background: white;
+}
+
+.report-store-header {
+    background: linear-gradient(120deg, rgba(0, 89, 78, 0.08), rgba(229, 106, 84, 0.08));
+    padding: 1rem 1.25rem;
+}
+
+.report-card {
+    border-radius: 1rem;
+    border: 1px solid #E5E7EB;
+    padding: 1.25rem;
+    background: #FFFFFF;
+    box-shadow: 0 10px 30px -20px rgba(0, 0, 0, 0.35);
+}
+
+.report-card h4 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--color-primary);
+}
+
+.report-card-meta {
+    font-size: 0.9rem;
+    color: #6B7280;
+}
+
+.report-data-list li {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: #111827;
 }
 
 @media (min-width: 769px) {
