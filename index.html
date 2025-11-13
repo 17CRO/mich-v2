@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion de Maintenance (Cloud)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Bibliothèque pour générer les QR Codes -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- Bibliothèque pour scanner les QR Codes -->
+    <script src="https://unpkg.com/html5-qrcode@2.0.9/dist/html5-qrcode.min.js"></script>
+    <!-- Génération d'Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    
+    <!-- Police Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/styles.css">
+
+</head>
+<body class="min-h-screen">
+
+    <!-- En-tête (maintenant caché en permanence) -->
+    <header id="main-header" class="relative overflow-hidden text-white hidden">
+        <div class="absolute inset-0 bg-gradient-to-r from-[#00594E] via-[#00463C] to-[#E56A54]"></div>
+        <div class="absolute -bottom-20 -left-16 w-64 h-64 rounded-full bg-white/5 blur-3xl"></div>
+        <div class="absolute -top-12 -right-10 w-56 h-56 rounded-full bg-white/10 blur-2xl"></div>
+        <div class="relative">
+            <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+                <div class="header-layout flex flex-col lg:flex-row lg:items-center lg:justify-between gap-10">
+                    <div class="space-y-4">
+                        <span class="inline-flex items-center gap-2 rounded-md bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em]">
+                            <span class="h-2 w-2 rounded-sm bg-white"></span>
+                            Plateforme de maintenance
+                        </span>
+                        <div class="space-y-3">
+                            <h1 class="text-3xl sm:text-4xl font-bold tracking-tight">Gest'Appareils</h1>
+                            <p class="text-base sm:text-lg text-white/80 max-w-xl">
+                                Suivez vos équipements, planifiez vos interventions et simplifiez le quotidien de vos équipes.
+                            </p>
+                        </div>
+                    </div>
+                    <!-- Le panneau utilisateur est déplacé dans la barre de navigation -->
+                    <div id="user-info-panel" class="user-info-panel flex flex-col items-center gap-3 text-sm bg-white/10 backdrop-blur-sm rounded-xl px-5 py-4 shadow-lg shadow-black/10 hidden">
+                        <span id="user-welcome-display" class="text-base font-semibold hidden"></span>
+                        <span id="user-role-display" class="badge bg-white/20 text-white hidden"></span>
+                        <button id="auth-button" class="btn btn-secondary text-sm px-5 py-2">Déconnexion</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation principale (Onglets) -->
+    <div id="main-nav" class="sticky top-0 z-30 hidden px-4 sm:px-6 lg:px-8 py-4"> <!-- Ajout de padding vertical -->
+        <div class="nav-shell max-w-6xl mx-auto">
+            <div id="main-nav-container" class="px-3 sm:px-6 lg:px-8 flex items-center gap-3 justify-between">
+                <div class="flex items-center gap-3 flex-1">
+                    <button id="mobile-menu-button" type="button" aria-label="Ouvrir le menu" class="hamburger-button lg:hidden">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </button>
+                    <div class="flex items-center gap-3 overflow-x-auto w-full">
+                        <button id="nav-tab-scanner" data-page="scanner" class="nav-tab nav-tab-active">Scanner</button>
+                        <!-- Onglets Admin seulement -->
+                        <button id="nav-tab-reports" data-page="reports" class="nav-tab nav-tab-inactive admin-only">Rapports</button>
+                        <button id="nav-tab-stores" data-page="stores" class="nav-tab nav-tab-inactive admin-only">Magasins</button>
+                        <button id="nav-tab-forms" data-page="forms" class="nav-tab nav-tab-inactive admin-only">Formulaires</button>
+                        <button id="nav-tab-admin" data-page="admin" class="nav-tab nav-tab-inactive admin-only">Admin</button>
+                    </div>
+                </div>
+
+                <!-- Panneau utilisateur déplacé ici -->
+                <div id="nav-user-info" class="hidden md:flex items-center gap-3 text-sm">
+                    <span id="user-welcome-display-nav" class="text-base font-semibold hidden text-primary-dark"></span>
+                    <span id="user-role-display-nav" class="badge bg-primary/20 text-primary hidden"></span>
+                    <button id="auth-button-nav" class="btn btn-secondary text-sm px-4 py-1.5">Déconnexion</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Menu mobile -->
+    <div id="mobile-menu-panel" class="mobile-menu-panel hidden">
+        <div id="mobile-menu-overlay" class="mobile-menu-overlay"></div>
+        <div class="mobile-menu-content">
+            <div class="mobile-menu-header">
+                <div>
+                    <p id="mobile-user-name" class="mobile-menu-name"></p>
+                    <p id="mobile-user-email" class="mobile-menu-email"></p>
+                    <span id="mobile-role-display" class="badge hidden"></span>
+                </div>
+                <button id="mobile-menu-close" type="button" aria-label="Fermer le menu" class="mobile-menu-close">&times;</button>
+            </div>
+
+            <form id="mobile-account-form" class="space-y-3">
+                <div class="grid gap-3 sm:grid-cols-2">
+                    <div>
+                        <label for="mobile-account-first-name" class="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Prénom</label>
+                        <input type="text" id="mobile-account-first-name" class="form-field" placeholder="ex: Léa">
+                    </div>
+                    <div>
+                        <label for="mobile-account-last-name" class="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Nom</label>
+                        <input type="text" id="mobile-account-last-name" class="form-field" placeholder="ex: Martin">
+                    </div>
+                </div>
+                <div>
+                    <label for="mobile-account-fonction" class="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Fonction</label>
+                    <input type="text" id="mobile-account-fonction" class="form-field" placeholder="Technicien, Manager, ...">
+                </div>
+                <div>
+                    <label for="mobile-account-email" class="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Email</label>
+                    <input type="email" id="mobile-account-email" class="form-field bg-gray-100" disabled>
+                </div>
+                <button type="submit" class="w-full btn btn-primary">Mettre à jour mes informations</button>
+            </form>
+
+            <div class="mobile-nav-links" id="mobile-nav-links">
+                <p class="mobile-nav-section-title">Navigation</p>
+                <button type="button" class="mobile-nav-link" data-page="scanner">Scanner</button>
+                <button type="button" class="mobile-nav-link admin-only-mobile" data-page="reports">Rapports</button>
+                <button type="button" class="mobile-nav-link admin-only-mobile" data-page="stores">Magasins</button>
+                <button type="button" class="mobile-nav-link admin-only-mobile" data-page="forms">Formulaires</button>
+                <button type="button" class="mobile-nav-link admin-only-mobile" data-page="admin">Gestion Admin</button>
+            </div>
+
+            <button id="mobile-logout-btn" type="button" class="w-full btn btn-danger">Déconnexion</button>
+        </div>
+    </div>
+
+    <!-- Conteneur principal des pages -->
+    <main id="page-container" class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6">
+
+        <!-- ================= PAGE 0: CONNEXION / INSCRIPTION ================= -->
+        <div id="page-login" class="page max-w-md mx-auto card p-8">
+            
+            <!-- Formulaire de Connexion -->
+            <form id="login-form">
+                <h2 class="text-2xl font-bold text-center mb-6 text-primary-dark">Connexion</h2>
+                <div class="mb-4">
+                    <label for="login-email" class="block text-gray-700 font-medium mb-1">Email</label>
+                    <input type="email" id="login-email" class="form-field" required>
+                </div>
+                <div class="mb-6">
+                    <label for="login-password" class="block text-gray-700 font-medium mb-1">Mot de passe</label>
+                    <input type="password" id="login-password" class="form-field" required>
+                </div>
+                <button type="submit" class="w-full btn btn-primary">
+                    Se connecter
+                </button>
+                <p class="text-center text-sm text-gray-600 mt-4">
+                    Pas de compte ? <a href="#" id="show-signup" class="text-secondary hover:underline">Inscrivez-vous</a>
+                </p>
+            </form>
+
+            <!-- Formulaire d'Inscription (caché par défaut) -->
+            <form id="signup-form" class="hidden">
+                <h2 class="text-2xl font-bold text-center mb-6 text-primary-dark">Inscription</h2>
+                <div class="mb-4">
+                    <label for="signup-email" class="block text-gray-700 font-medium mb-1">Email</glabel>
+                    <input type="email" id="signup-email" class="form-field" required>
+                </div>
+                <div class="mb-6">
+                    <label for="signup-password" class="block text-gray-700 font-medium mb-1">Mot de passe (6 car. min)</label>
+                    <input type="password" id="signup-password" class="form-field" required>
+                </div>
+                <button type="submit" class="w-full btn btn-secondary">
+                    Créer le compte
+                </button>
+                <p class="text-center text-sm text-gray-600 mt-4">
+                    Déjà un compte ? <a href="#" id="show-login" class="text-secondary hover:underline">Connectez-vous</a>
+                </p>
+            </form>
+        </div>
+
+        <!-- ================= PAGE 0.5: EN ATTENTE D'APPROBATION ================= -->
+        <div id="page-pending-approval" class="page hidden max-w-lg mx-auto card p-8 text-center">
+            <h2 class="text-2xl font-bold text-primary-dark mb-4">Compte en attente</h2>
+            <p class="text-gray-700 mb-6">Merci pour votre inscription ! Votre compte est en attente d'approbation par un administrateur. Vous serez notifié par email lorsque votre compte sera activé.</p>
+            <p class="text-sm text-gray-500">Vous pouvez fermer cette page en attendant.</p>
+        </div>
+
+        <!-- ================= PAGE 0.75: PREMIÈRE CONNEXION ================= -->
+        <div id="page-password-reset" class="page hidden max-w-lg mx-auto card p-8 space-y-6">
+            <div class="text-center space-y-2">
+                <h2 class="text-2xl font-bold text-primary-dark">Bienvenue !</h2>
+                <p class="text-gray-600">C'est votre première connexion sur Gest'Appareils. Merci de personnaliser votre profil et de définir un nouveau mot de passe.</p>
+                <p class="text-sm text-gray-500">Connecté en tant que <span id="force-reset-email" class="font-semibold text-primary"></span></p>
+            </div>
+            <form id="force-password-form" class="space-y-4">
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <div>
+                        <label for="force-first-name" class="block text-sm font-medium text-gray-700">Prénom</label>
+                        <input type="text" id="force-first-name" class="form-field" placeholder="ex: Léa" required>
+                    </div>
+                    <div>
+                        <label for="force-last-name" class="block text-sm font-medium text-gray-700">Nom</label>
+                        <input type="text" id="force-last-name" class="form-field" placeholder="ex: Martin" required>
+                    </div>
+                </div>
+                <div>
+                    <label for="force-password" class="block text-sm font-medium text-gray-700">Nouveau mot de passe</label>
+                    <input type="password" id="force-password" class="form-field" minlength="6" required>
+                </div>
+                <div>
+                    <label for="force-password-confirm" class="block text-sm font-medium text-gray-700">Confirmer le mot de passe</label>
+                    <input type="password" id="force-password-confirm" class="form-field" minlength="6" required>
+                </div>
+                <button type="submit" class="w-full btn btn-primary">Enregistrer et continuer</button>
+            </form>
+        </div>
+
+
+        <!-- ================= PAGE 1: SCANNER ================= -->
+        <div id="page-scanner" class="page hidden"> <!-- Page par défaut après connexion -->
+            <div class="card scanner-card p-6 max-w-lg mx-auto space-y-4 text-center">
+                <h2 class="scanner-heading-mobile-hidden text-xl font-bold mb-4 text-primary-dark">Scanner un QR Code</h2>
+                <button id="start-scan-btn" class="w-full btn btn-primary py-3">
+                    Démarrer le Scan
+                </button>
+                <div id="qr-reader" class="mt-4"></div>
+                <button id="stop-scan-btn" class="w-full btn btn-danger py-2 mt-4 hidden">
+                    Arrêter le Scan
+                </button>
+            </div>
+        </div>
+
+        <!-- ================= PAGE 2: FORMULAIRE D'INTERVENTION ================= -->
+        <div id="page-intervention-form" class="page hidden">
+            <div class="card p-6 max-w-lg mx-auto space-y-4">
+                <button id="back-to-scanner" class="text-secondary hover:underline mb-4">&larr; Retour au scanner</button>
+                <h2 id="form-title" class="text-2xl font-bold mb-2 text-primary-dark">Rapport d'intervention</h2>
+                <p id="form-subtitle" class="text-gray-600 mb-6">Veuillez remplir les champs ci-dessous.</p>
+                
+                <form id="intervention-form">
+                    <div class="mb-4">
+                        <label class="block text-gray-700 font-medium mb-1">Date et Heure</label>
+                        <input type="text" id="form-datetime" class="form-field bg-gray-100" readonly>
+                    </div>
+                    
+                    <!-- Les champs dynamiques du formulaire seront injectés ici -->
+                    <div id="dynamic-form-fields" class="space-y-4"></div>
+
+                    <button type="submit" class="w-full btn btn-primary py-3 mt-6">
+                        Soumettre le rapport
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- ================= PAGE 3: GESTION DES MAGASINS ================= -->
+        <div id="page-stores" class="page hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                <!-- Colonne 1: Ajouter Magasin / Appareil -->
+                <div class="lg:col-span-1 space-y-6">
+                    <!-- Ajouter un magasin -->
+                <div class="card p-6 space-y-4">
+                        <h2 class="text-xl font-bold mb-4 text-primary-dark">Ajouter un Magasin</h2>
+                        <form id="add-store-form">
+                            <div class="mb-4">
+                                <label for="store-name" class="block text-gray-700 font-medium mb-1">Nom du Magasin</label>
+                                <input type="text" id="store-name" class="form-field" required>
+                            </div>
+                            <div class="mb-4">
+                                <label for="store-code" class="block text-gray-700 font-medium mb-1">Code Magasin (Modifiable)</label>
+                                <input type="text" id="store-code" class="form-field" required>
+                            </div>
+                            <button type="submit" class="w-full btn btn-primary">
+                                Enregistrer Magasin
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Ajouter un appareil -->
+                <div class="card p-6 space-y-4">
+                        <h2 class="text-xl font-bold mb-4 text-primary-dark">Ajouter un Appareil</h2>
+                        <form id="add-equipment-form">
+                            <div class="mb-4">
+                                <label for="equip-store-select" class="block text-gray-700 font-medium mb-1">Magasin</label>
+                                <select id="equip-store-select" class="form-field custom-select" required>
+                                    <option value="">Sélectionnez un magasin</option>
+                                    <!-- Options remplies par JS -->
+                                </select>
+                            </div>
+                            <div class="mb-4">
+                                <label for="equip-name" class="block text-gray-700 font-medium mb-1">Nom de l'appareil</label>
+                                <input type="text" id="equip-name" class="form-field" placeholder="Ex: Chaudière n°1" required>
+                            </div>
+                            <div class="mb-4">
+                                <label for="equip-type" class="block text-gray-700 font-medium mb-1">Type d'appareil</label>
+                                <select id="equip-type" class="form-field custom-select" required>
+                                    <!-- Options remplies par JS -->
+                                </select>
+                            </div>
+                             <div class="mb-4">
+                                <label for="equip-form-select" class="block text-gray-700 font-medium mb-1">Formulaire à lier</label>
+                                <select id="equip-form-select" class="form-field custom-select" required>
+                                    <option value="">Sélectionnez un formulaire</option>
+                                    <!-- Options remplies par JS -->
+                                </select>
+                            </div>
+                            <button type="submit" class="w-full btn btn-secondary">
+                                Ajouter l'Appareil
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Colonne 2: Liste des Magasins et Appareils -->
+                <div class="lg:col-span-2 card p-6 space-y-4">
+                    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-4">
+                        <h2 class="text-xl font-bold text-primary-dark">Vos Magasins et Appareils</h2>
+                        <div class="w-full sm:w-72">
+                            <label for="store-search-input" class="block text-sm font-medium text-gray-600">Rechercher un magasin</label>
+                            <input id="store-search-input" type="search" placeholder="Nom ou code du magasin" class="form-field mt-1" />
+                        </div>
+                    </div>
+
+                    <!-- NOUVELLE BARRE D'ACTIONS DE MASSE -->
+                    <div id="bulk-action-bar" class="hidden bg-blue-50 border border-blue-200 p-3 rounded-lg mb-4 flex flex-wrap gap-2 items-center justify-between">
+                        <div>
+                            <span id="bulk-action-count" class="font-bold">0</span>
+                            <span class="font-medium"> appareil(s) sélectionné(s)</span>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <button id="bulk-print-btn" class="btn btn-primary text-sm py-1 px-3">Imprimer QR</button>
+                            <button id="bulk-duplicate-btn" class="btn btn-secondary text-sm py-1 px-3">Dupliquer</button>
+                            <button id="bulk-delete-btn" class="btn btn-danger text-sm py-1 px-3">Supprimer</button>
+                            <button id="bulk-deselect-btn" class="text-gray-600 hover:underline text-sm ml-2">Annuler</button>
+                        </div>
+                    </div>
+                    
+                    <div id="stores-list" class="space-y-6">
+                        <!-- Contenu généré par JS -->
+                        <p class="text-gray-500">Aucun magasin enregistré pour le moment.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= PAGE 4: GESTION DES FORMULAIRES ================= -->
+        <div id="page-forms" class="page hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Colonne 1: Créateur de formulaire -->
+                <div class="lg:col-span-1 card p-6 h-fit">
+                    <h2 class="text-xl font-bold mb-4 text-primary-dark">Créer/Modifier un Formulaire</h2>
+                    <form id="create-form-builder">
+                        <input type="hidden" id="form-builder-id">
+                        <div class="mb-4">
+                            <label for="form-builder-title" class="block text-gray-700 font-medium mb-1">Titre du Formulaire</label>
+                            <input type="text" id="form-builder-title" class="form-field" required>
+                        </div>
+                        
+                        <h3 class="font-semibold mb-2 text-primary-dark">Champs du formulaire</h3>
+                        <div id="form-builder-fields" class="space-y-4 mb-4">
+                            <!-- Champs dynamiques ajoutés ici -->
+                        </div>
+
+                        <button type="button" id="add-form-field-btn" class="w-full bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300 mb-4 font-medium">
+                            + Ajouter un champ
+                        </button>
+                        <button type="submit" class="w-full btn btn-primary">
+                            Enregistrer le Formulaire
+                        </button>
+                        <button type="button" id="cancel-edit-form-btn" class="w-full btn btn-gray mt-2 hidden">
+                            Annuler l'édition
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Colonne 2: Liste des formulaires existants -->
+                <div class="lg:col-span-2 card p-6 space-y-4">
+                    <h2 class="text-xl font-bold mb-4 text-primary-dark">Formulaires Existants</h2>
+                    <div id="forms-list" class="space-y-4">
+                        <!-- Contenu généré par JS -->
+                        <p class="text-gray-500">Aucun formulaire créé pour le moment.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= PAGE 5: RAPPORTS (Stats) ================= -->
+        <div id="page-reports" class="page hidden">
+            <div class="card p-6 space-y-6">
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                        <h2 class="text-2xl font-bold text-primary-dark">Rapports d'Intervention</h2>
+                        <p id="reports-count" class="text-sm text-gray-500">0 rapport</p>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button id="open-excel-modal" type="button" class="btn btn-secondary whitespace-nowrap">Extraction Excel</button>
+                    </div>
+                </div>
+
+                <!-- Filtres -->
+                <div class="space-y-4">
+                    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                        <div>
+                            <label for="report-filter-store" class="block text-gray-700 font-medium mb-1">Filtrer par magasin</label>
+                            <select id="report-filter-store" class="form-field custom-select">
+                                <option value="all">Tous les magasins</option>
+                                <!-- Options remplies par JS -->
+                            </select>
+                        </div>
+                        <div>
+                            <label for="report-filter-user" class="block text-gray-700 font-medium mb-1">Filtrer par intervenant</label>
+                            <select id="report-filter-user" class="form-field custom-select">
+                                <option value="all">Tous les intervenants</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="report-filter-form" class="block text-gray-700 font-medium mb-1">Filtrer par formulaire</label>
+                            <select id="report-filter-form" class="form-field custom-select">
+                                <option value="all">Tous les formulaires</option>
+                            </select>
+                        </div>
+                        <div class="md:col-span-2 xl:col-span-3">
+                            <label for="report-search-input" class="block text-gray-700 font-medium mb-1">Rechercher</label>
+                            <input id="report-search-input" type="search" placeholder="Magasin, intervenant ou formulaire" class="form-field" />
+                        </div>
+                        <div>
+                            <label for="report-filter-from" class="block text-gray-700 font-medium mb-1">Date de début</label>
+                            <input id="report-filter-from" type="date" class="form-field">
+                        </div>
+                        <div>
+                            <label for="report-filter-to" class="block text-gray-700 font-medium mb-1">Date de fin</label>
+                            <input id="report-filter-to" type="date" class="form-field">
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap gap-3">
+                        <button id="report-reset-filters" type="button" class="btn btn-gray">Réinitialiser les filtres</button>
+                    </div>
+                </div>
+
+                <!-- Liste des rapports -->
+                <div id="reports-list" class="space-y-4">
+                    <!-- Contenu généré par JS -->
+                    <p class="text-gray-500 py-4">Aucun rapport soumis pour le moment.</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- ================= PAGE 6: ADMIN ================= -->
+        <div id="page-admin" class="page hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                
+                <!-- Colonne 1: Gestion des Utilisateurs -->
+                <div class="space-y-6">
+                    <div class="card p-6 h-fit space-y-4">
+                        <div class="flex flex-col gap-3">
+                            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                <div>
+                                    <h2 class="text-xl font-bold text-primary-dark">Créer un utilisateur</h2>
+                                    <p class="text-sm text-gray-500">Invitez un nouveau membre à rejoindre la plateforme.</p>
+                                </div>
+                                <button id="toggle-create-user-form" type="button" class="btn btn-primary whitespace-nowrap">Créer un utilisateur</button>
+                            </div>
+                            <form id="create-user-form" class="space-y-4 hidden">
+                                <div class="grid gap-4 sm:grid-cols-2">
+                                    <div>
+                                        <label for="create-user-first-name" class="block text-sm font-medium text-gray-700">Prénom</label>
+                                        <input type="text" id="create-user-first-name" class="form-field" placeholder="ex: Léa" required>
+                                    </div>
+                                    <div>
+                                        <label for="create-user-last-name" class="block text-sm font-medium text-gray-700">Nom</label>
+                                        <input type="text" id="create-user-last-name" class="form-field" placeholder="ex: Martin" required>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label for="create-user-email" class="block text-sm font-medium text-gray-700">Email professionnel</label>
+                                    <input type="email" id="create-user-email" class="form-field" placeholder="nom@entreprise.fr" required>
+                                </div>
+                                <div>
+                                    <label for="create-user-password" class="block text-sm font-medium text-gray-700">Mot de passe provisoire</label>
+                                    <input type="password" id="create-user-password" class="form-field" minlength="6" required>
+                                    <p class="text-xs text-gray-500 mt-1">L'utilisateur devra le remplacer lors de sa première connexion.</p>
+                                </div>
+                                <div>
+                                    <label for="create-user-role" class="block text-sm font-medium text-gray-700">Rôle initial</label>
+                                    <select id="create-user-role" class="form-field custom-select">
+                                        <option value="user" selected>Utilisateur</option>
+                                        <option value="admin">Administrateur</option>
+                                    </select>
+                                </div>
+                                <button type="submit" class="w-full btn btn-primary">Créer et envoyer les accès</button>
+                            </form>
+                        </div>
+                    </div>
+                    <div class="card p-6 h-fit space-y-5">
+                        <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                            <div>
+                                <h2 class="text-xl font-bold text-primary-dark">Utilisateurs enregistrés</h2>
+                                <p id="users-count" class="text-sm text-gray-500">0 utilisateur</p>
+                            </div>
+                            <div class="w-full sm:w-64">
+                                <label for="user-search-input" class="block text-sm font-medium text-gray-700 mb-1">Recherche</label>
+                                <input id="user-search-input" type="search" class="form-field" placeholder="Nom, email ou rôle">
+                            </div>
+                        </div>
+                        <div id="users-list" class="space-y-3">
+                            <!-- Liste des utilisateurs chargée par JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Colonne 2: Gestion des Types d'Appareils -->
+                <div class="card p-6 h-fit space-y-4">
+                    <h2 class="text-xl font-bold mb-4 text-primary-dark">Gestion des Types d'Appareils</h2>
+                    
+                    <!-- Onglets Ajout -->
+                    <div class="flex border-b border-gray-200 mb-4">
+                         <button id="tab-model-btn" class="tab-btn-admin flex-1 py-2 font-medium text-sm text-center border-b-2 border-secondary text-secondary">Ajout rapide (Modèles)</button>
+                         <button id="tab-manual-btn" class="tab-btn-admin flex-1 py-2 font-medium text-sm text-center border-b-2 border-transparent text-gray-500">Ajout manuel</button>
+                    </div>
+                    
+                    <!-- Panneau Ajout Modèles -->
+                    <div id="tab-panel-model">
+                        <form id="add-equip-type-model-form" class="space-y-3">
+                             <div>
+                                <label for="equip-type-model-select" class="block text-gray-700 font-medium mb-1">Choisir un modèle</label>
+                                <select id="equip-type-model-select" class="form-field custom-select">
+                                    <option value="">Sélectionnez un modèle...</option>
+                                </select>
+                             </div>
+                             <button type="submit" class="w-full btn btn-primary">Ajouter ce modèle</button>
+                        </form>
+                    </div>
+                    
+                    <!-- Panneau Ajout Manuel -->
+                    <div id="tab-panel-manual" class="hidden">
+                        <form id="add-equip-type-form" class="space-y-3">
+                            <div>
+                                <label for="equip-type-label" class="block text-gray-700 font-medium mb-1">Nom du type</label>
+                                <input type="text" id="equip-type-label" placeholder="ex: Hotte" class="form-field" required>
+                            </div>
+                             <div>
+                                <label for="equip-type-emoji" class="block text-gray-700 font-medium mb-1">Emoji</label>
+                                <input type="text" id="equip-type-emoji" placeholder="ex: 🌬️" class="form-field" required>
+                            </div>
+                            <button type="submit" class="w-full btn btn-primary">Ajouter manuellement</button>
+                        </form>
+                    </div>
+                    
+                    <hr class="my-6">
+                    
+                    <!-- Liste des types -->
+                    <h3 class="text-lg font-semibold mb-3 text-primary-dark">Types existants</h3>
+                    <div id="equip-types-list" class="space-y-2">
+                        <!-- Liste des types chargée par JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- ================= MODALS ================= -->
+
+    <!-- Modal Extraction Excel -->
+    <div id="excel-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white p-6 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-bold text-primary-dark">Exporter les rapports</h2>
+                <button type="button" class="modal-close-btn text-2xl leading-none text-gray-500 hover:text-primary">&times;</button>
+            </div>
+            <p class="text-sm text-gray-600 mb-4">Affinez votre extraction Excel en sélectionnant des filtres optionnels.</p>
+            <form id="excel-export-form" class="space-y-4">
+                <div class="grid gap-4 md:grid-cols-2">
+                    <div>
+                        <label for="excel-filter-store" class="block text-gray-700 font-medium mb-1">Magasin</label>
+                        <select id="excel-filter-store" class="form-field custom-select">
+                            <option value="all">Tous les magasins</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="excel-filter-user" class="block text-gray-700 font-medium mb-1">Intervenant</label>
+                        <select id="excel-filter-user" class="form-field custom-select">
+                            <option value="all">Tous les intervenants</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="excel-filter-form" class="block text-gray-700 font-medium mb-1">Formulaire</label>
+                        <select id="excel-filter-form" class="form-field custom-select">
+                            <option value="all">Tous les formulaires</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="excel-filter-from" class="block text-gray-700 font-medium mb-1">Date de début</label>
+                        <input type="date" id="excel-filter-from" class="form-field">
+                    </div>
+                    <div>
+                        <label for="excel-filter-to" class="block text-gray-700 font-medium mb-1">Date de fin</label>
+                        <input type="date" id="excel-filter-to" class="form-field">
+                    </div>
+                </div>
+                <div class="flex flex-wrap justify-end gap-2">
+                    <button type="button" class="modal-close-btn btn btn-gray">Annuler</button>
+                    <button type="submit" class="btn btn-primary">Générer l'Excel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal pour afficher le QR Code -->
+    <div id="qr-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white p-6 rounded-lg shadow-xl text-center max-w-4xl w-full max-h-[90vh] flex flex-col">
+            <h2 id="qr-modal-title" class="text-xl font-bold mb-4 text-primary-dark">QR Code de l'Appareil</h2>
+            <p id="qr-modal-subtitle" class="text-gray-600 mb-4"></p>
+            
+            <!-- Sélecteur de taille (pour simple) -->
+            <div id="qr-size-select-wrapper" class="mb-4 no-print">
+                <label for="qr-size-select" class="text-sm text-gray-600 mr-2">Taille:</label>
+                <select id="qr-size-select" class="text-sm px-2 py-1 border border-gray-300 rounded-lg bg-white custom-select">
+                    <option value="128">Petit</option>
+                    <option value="256" selected>Moyen</option>
+                    <option value="512">Grand</option>
+                </select>
+            </div>
+            
+            <!-- Le QR code (ou la grille) sera généré ici -->
+            <div id="qr-modal-content" class="flex-grow overflow-y-auto p-2">
+                <!-- Contenu généré par JS -->
+            </div>
+            
+            <div class="flex space-x-2 no-print mt-4">
+                <button id="print-qr-btn" class="w-full btn btn-primary">
+                    Imprimer
+                </button>
+                <button id="close-qr-modal" class="w-full btn btn-gray">
+                    Fermer
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal d'édition de Magasin -->
+    <div id="edit-store-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white p-6 rounded-lg shadow-xl max-w-lg w-full">
+            <h2 class="text-xl font-bold mb-4 text-primary-dark">Modifier le Magasin</h2>
+            <form id="edit-store-form">
+                <input type="hidden" id="edit-store-id">
+                <div class="mb-4">
+                    <label for="edit-store-name" class="block text-gray-700 font-medium mb-1">Nom du Magasin</label>
+                    <input type="text" id="edit-store-name" class="form-field" required>
+                </div>
+                <div class="mb-4">
+                    <label for="edit-store-code" class="block text-gray-700 font-medium mb-1">Code Magasin</label>
+                    <input type="text" id="edit-store-code" class="form-field" required>
+                </div>
+                <div class="flex justify-end space-x-2">
+                    <button type="button" class="modal-close-btn btn btn-gray">
+                        Annuler
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        Enregistrer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Modal d'édition d'Appareil -->
+    <div id="edit-equip-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white p-6 rounded-lg shadow-xl max-w-lg w-full">
+            <h2 class="text-xl font-bold mb-4 text-primary-dark">Modifier l'Appareil</h2>
+            <form id="edit-equip-form">
+                <input type="hidden" id="edit-equip-id">
+                <div class="mb-4">
+                    <label for="edit-equip-name" class="block text-gray-700 font-medium mb-1">Nom de l'appareil</label>
+                    <input type="text" id="edit-equip-name" class="form-field" required>
+                </div>
+                 <div class="mb-4">
+                    <label for="edit-equip-form-select" class="block text-gray-700 font-medium mb-1">Formulaire à lier</label>
+                    <select id="edit-equip-form-select" class="form-field custom-select" required>
+                        <option value="">Sélectionnez un formulaire</option>
+                        <!-- Options remplies par JS -->
+                    </select>
+                </div>
+                <div class="flex justify-end space-x-2">
+                    <button type="button" class="modal-close-btn btn btn-gray">
+                        Annuler
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        Enregistrer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- MODALE: Édition Type d'Appareil -->
+    <div id="edit-equip-type-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white p-6 rounded-lg shadow-xl max-w-lg w-full">
+            <h2 class="text-xl font-bold mb-4 text-primary-dark">Modifier le Type d'Appareil</h2>
+            <form id="edit-equip-type-form">
+                <input type="hidden" id="edit-equip-type-id">
+                <div class="mb-4">
+                    <label for="edit-equip-type-label" class="block text-gray-700 font-medium mb-1">Nom du type</label>
+                    <input type="text" id="edit-equip-type-label" class="form-field" required>
+                </div>
+                 <div class="mb-4">
+                    <label for="edit-equip-type-emoji" class="block text-gray-700 font-medium mb-1">Emoji</label>
+                    <input type="text" id="edit-equip-type-emoji" class="form-field" required>
+                </div>
+                <div class="flex justify-end space-x-2">
+                    <button type="button" class="modal-close-btn btn btn-gray">
+                        Annuler
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        Enregistrer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmation (Générique) -->
+    <div id="confirm-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full">
+            <h2 id="confirm-title" class="text-xl font-bold mb-4 text-primary-dark">Êtes-vous sûr ?</h2>
+            <p id="confirm-text" class="text-gray-600 mb-6">Cette action est irréversible.</p>
+            <div class="flex justify-end space-x-2">
+                <button id="confirm-cancel-btn" class="btn btn-gray">
+                    Annuler
+                </button>
+                <button id="confirm-action-btn" class="btn btn-danger">
+                    Confirmer
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal pour les messages (erreurs, succès) -->
+    <div id="message-modal" class="fixed top-5 right-5 bg-red-600 text-white p-4 rounded-lg shadow-xl z-50 hidden transition-opacity duration-300" role="alert">
+        <div class="flex items-center gap-3">
+            <p id="message-text" class="flex-1"></p>
+            <button id="message-action-btn" class="hidden text-sm font-semibold underline decoration-2 decoration-white/70 focus:outline-none">Annuler</button>
+        </div>
+    </div>
+
+    <!-- NOUVELLE MODALE: Duplication d'Appareils -->
+    <div id="duplicate-equip-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white p-6 rounded-lg shadow-xl max-w-lg w-full">
+            <h2 class="text-xl font-bold mb-4 text-primary-dark">Dupliquer les Appareils</h2>
+            <p class="text-gray-600 mb-4">Sélectionnez les magasins de destination où vous souhaitez copier les <span id="duplicate-count" class="font-bold">0</span> appareil(s) sélectionné(s).</p>
+            <form id="duplicate-equip-form">
+                <div id="duplicate-store-list" class="space-y-2 max-h-60 overflow-y-auto border p-3 rounded-lg mb-4">
+                    <!-- Liste des magasins (checkboxes) générée par JS -->
+                </div>
+                <div class="flex justify-end space-x-2">
+                    <button type="button" class="modal-close-btn btn btn-gray">
+                        Annuler
+                    </button>
+                    <button type="submit" class="btn btn-secondary">
+                        Dupliquer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal d'édition de Rapport -->
+    <div id="edit-report-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white p-6 rounded-lg shadow-xl max-w-2xl w-full">
+            <h2 class="text-xl font-bold mb-4 text-primary-dark">Modifier le rapport</h2>
+            <form id="edit-report-form" class="space-y-4">
+                <input type="hidden" id="edit-report-id">
+                <div id="edit-report-fields" class="space-y-3 max-h-72 overflow-y-auto pr-1">
+                    <!-- Champs générés dynamiquement -->
+                </div>
+                <div class="flex justify-end space-x-2">
+                    <button type="button" class="modal-close-btn btn btn-gray">Annuler</button>
+                    <button type="submit" class="btn btn-primary">Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- ================= SCRIPT ================= -->
+    <script type="module" src="assets/js/app.js"></script>
+
+         </div>
+     <footer class="mt-12 py-6 bg-primary text-white text-center" id="site-footer">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <p class="text-sm text-white/80">
+            © 2025 Gest'Appareils. Tous droits réservés.
+        </p>
+    </div>
+</footer>
+    </div>
+</body>
+</html>

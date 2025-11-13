@@ -1,0 +1,435 @@
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #F3F4F6;
+    display: flex;            /* <-- AJOUTEZ CETTE LIGNE */
+    flex-direction: column;   /* <-- AJOUTEZ CETTE LIGNE */
+}
+main#page-container {
+    flex-grow: 1;
+}
+/* Définition des couleurs personnalisées */
+:root {
+    --color-primary: #00594E; /* Vert foncé */
+    --color-secondary: #E56A54; /* Corail/Rouge */
+    --color-danger: #D9534F; /* Rouge pour suppressions/erreurs */
+}
+
+.bg-primary { background-color: var(--color-primary); }
+.bg-secondary { background-color: var(--color-secondary); }
+.bg-soft { background-color: #FFFFFF; }
+
+#main-header {
+    box-shadow: 0 40px 80px -60px rgba(0, 89, 78, 0.75);
+}
+
+#main-nav {
+    /* Retiré le margin-top négatif car l'en-tête n'est plus là */
+}
+
+.nav-shell {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(12px);
+    border-radius: 1rem;
+    border: 1px solid rgba(0, 89, 78, 0.12);
+    box-shadow: 0 20px 45px -30px rgba(0, 89, 78, 0.45);
+}
+
+#main-nav-container {
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+    gap: 1rem;
+}
+
+.hamburger-button {
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(0, 89, 78, 0.2);
+    display: inline-flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 0.3rem;
+    background: rgba(0, 89, 78, 0.05);
+    transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.hamburger-button span {
+    width: 1.5rem;
+    height: 0.15rem;
+    border-radius: 999px;
+    background: var(--color-primary);
+}
+
+.hamburger-button:focus,
+.hamburger-button:hover {
+    background: rgba(0, 89, 78, 0.15);
+    transform: translateY(-1px);
+}
+
+#nav-user-info {
+    white-space: nowrap;
+}
+
+.text-primary { color: var(--color-primary); }
+.text-primary-dark { color: #004238; }
+.text-secondary { color: var(--color-secondary); }
+.text-danger { color: var(--color-danger); }
+
+.card {
+    background-color: #FFFFFF;
+    border-radius: 1rem;
+    box-shadow: 0 15px 45px -20px rgba(0, 89, 78, 0.35);
+    border: 1px solid rgba(0, 89, 78, 0.08);
+}
+
+
+.section-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--color-primary);
+}
+
+/* Style pour le lecteur QR */
+#qr-reader {
+    width: 100%;
+    max-width: 500px;
+    margin: 0 auto;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+}
+/* Masquer les flèches sur les champs de type nombre */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+input[type=number] {
+    -moz-appearance: textfield;
+}
+
+/* Nouveaux styles pour les champs de formulaire (CSS standard) */
+.form-field {
+    width: 100%;
+    padding-left: 0.75rem; /* px-3 */
+    padding-right: 0.75rem; /* px-3 */
+    padding-top: 0.5rem; /* py-2 */
+    padding-bottom: 0.5rem; /* py-2 */
+    border: 1px solid #D1D5DB; /* border-gray-300 */
+    border-radius: 0.5rem; /* rounded-lg */
+    transition-property: all;
+    transition-duration: 200ms;
+}
+
+.form-field:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    --tw-ring-color: var(--color-secondary);
+    box-shadow: 0 0 0 2px var(--tw-ring-color);
+    opacity: 0.5;
+}
+
+/* Amélioration des Select */
+.custom-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%2Mxmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2220%22%20height%3D%2220%22%20fill%3D%22none%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20stroke%3D%22%236b7280%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%221.5%22%20d%3D%22M6%208l4%204%204-4%22%2F%3E%3C%2Fsvg%3E');
+    background-position: right 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.25em 1.25em;
+    padding-right: 2.5rem; /* Espace pour l'icône */
+}
+
+/* Style des boutons (CSS standard) */
+.btn {
+    padding-left: 1rem; /* px-4 */
+    padding-right: 1rem; /* px-4 */
+    padding-top: 0.5rem; /* py-2 */
+    padding-bottom: 0.5rem; /* py-2 */
+    border-radius: 0.375rem; /* rounded-md */
+    font-weight: 600; /* font-semibold */
+    color: white; /* text-white */
+    transition-property: all; /* transition */
+    transition-duration: 200ms; /* duration-200 */
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); /* shadow-sm */
+}
+.btn-primary {
+    background-color: var(--color-primary);
+}
+.btn-primary:hover {
+    background-color: #003C33; /* Version plus foncée */
+}
+.btn-secondary {
+    background-color: var(--color-secondary);
+}
+.btn-secondary:hover {
+    background-color: #C25844; /* Version plus foncée */
+}
+.btn-danger {
+    background-color: var(--color-danger);
+}
+.btn-danger:hover {
+    background-color: #c9302c;
+}
+.btn-gray {
+    background-color: #6B7280; /* Gris */
+}
+.btn-gray:hover {
+     background-color: #4B5563;
+}
+
+.user-info-panel {
+    align-items: center;
+    text-align: center;
+}
+
+@media (min-width: 1024px) {
+    .user-info-panel {
+        align-items: flex-end;
+        text-align: right;
+    }
+}
+
+.scanner-heading-mobile-hidden {
+    display: block;
+}
+
+@media (max-width: 768px) {
+    #page-scanner .scanner-card {
+        border: none;
+        box-shadow: none;
+        background-color: transparent;
+        padding-left: 0;
+        padding-right: 0;
+    }
+
+    .scanner-heading-mobile-hidden {
+        display: none;
+    }
+}
+
+.user-details {
+    border-top: 1px solid #E5E7EB;
+}
+
+.user-summary-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+@media (min-width: 640px) {
+    .user-summary-badges {
+        justify-content: flex-end;
+    }
+}
+
+/* Style des onglets de navigation (CSS standard) */
+.nav-tab {
+    padding: 0.5rem 1.25rem;
+    border-radius: 0.75rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+    border: 1px solid transparent;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+.nav-tab-active {
+    background-color: var(--color-primary);
+    color: white;
+    border-color: rgba(0, 89, 78, 0.4);
+}
+.nav-tab-inactive {
+    background-color: rgba(229, 106, 84, 0.08);
+    color: var(--color-primary);
+    border-color: rgba(229, 106, 84, 0.2);
+}
+.nav-tab-inactive:hover {
+    background-color: rgba(229, 106, 84, 0.2);
+    color: var(--color-primary);
+}
+
+/* Badge */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    border-radius: 9999px;
+    padding: 0.125rem 0.625rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Styles pour l'impression */
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    #qr-modal, #qr-modal * {
+        visibility: visible;
+    }
+    #qr-modal {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background: white;
+        padding: 0;
+        margin: 0;
+        max-height: none;
+        overflow: visible;
+    }
+    #qr-modal-content {
+        display: block !important; /* Permet à la grille de s'afficher */
+        overflow: visible !important;
+        max-height: none !important;
+    }
+    .qr-grid-item {
+        page-break-inside: avoid !important; /* Éviter les coupures */
+        border: 1px solid #ccc;
+        padding: 8px;
+        margin-bottom: 8px;
+    }
+    .no-print {
+        display: none !important;
+    }
+}
+
+@media (max-width: 640px) {
+    #main-header .header-layout {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 0.75rem;
+    }
+
+    #main-nav-container .nav-tab {
+        flex: 1;
+        text-align: center;
+    }
+}
+
+/* ===== Correctifs mobile & sticky footer ===== */
+html, body { height: 100%; }
+body {
+  min-height: 100svh;            /* tient compte de la barre d'adresse mobile */
+  display: flex;
+  flex-direction: column;
+}
+main#page-container {
+  flex: 1 0 auto;                /* prend tout l'espace disponible */
+}
+footer#site-footer {
+  margin-top: auto;               /* pousse le footer en bas */
+  padding-bottom: max(1rem, env(safe-area-inset-bottom)); /* zone sûre iOS */
+}
+/* Masquer la zone du lecteur quand elle est vide (évite une grande zone blanche) */
+#qr-reader:empty { display: none; }
+
+/* Menu mobile */
+.mobile-menu-panel {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: flex;
+    justify-content: flex-end;
+    align-items: stretch;
+    background: rgba(0, 0, 0, 0.55);
+}
+
+.mobile-menu-overlay {
+    flex: 1;
+    cursor: pointer;
+}
+
+.mobile-menu-content {
+    position: relative;
+    width: min(420px, 92vw);
+    height: 100%;
+    background: #ffffff;
+    padding: 1.5rem;
+    overflow-y: auto;
+    box-shadow: -20px 0 45px rgba(0, 0, 0, 0.15);
+}
+
+.mobile-menu-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 1.25rem;
+}
+
+.mobile-menu-name {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--color-primary);
+}
+
+.mobile-menu-email {
+    font-size: 0.875rem;
+    color: #6B7280;
+}
+
+.mobile-menu-close {
+    font-size: 2rem;
+    line-height: 1;
+    padding: 0.25rem 0.5rem;
+    color: #6B7280;
+}
+
+.mobile-menu-close:hover {
+    color: var(--color-primary);
+}
+
+.mobile-nav-links {
+    margin-top: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.mobile-nav-section-title {
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #9CA3AF;
+}
+
+.mobile-nav-link {
+    width: 100%;
+    text-align: left;
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    border: 1px solid rgba(0, 89, 78, 0.15);
+    border-radius: 0.75rem;
+    padding: 0.85rem 1rem;
+    font-weight: 600;
+    color: var(--color-primary);
+    background: rgba(0, 89, 78, 0.05);
+    transition: background 0.2s ease;
+}
+
+.mobile-nav-link:hover {
+    background: rgba(0, 89, 78, 0.15);
+}
+
+.admin-only-mobile {
+    display: none;
+}
+
+body[data-role="admin"] .admin-only-mobile {
+    display: inline-flex;
+}
+
+@media (min-width: 769px) {
+    .mobile-menu-panel {
+        display: none;
+    }
+}
