@@ -12,6 +12,11 @@
     <script src="https://unpkg.com/html5-qrcode@2.0.9/dist/html5-qrcode.min.js"></script>
     <!-- Génération d'Excel -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- Choices.js pour les multi-selects -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+    <!-- Chart.js pour les graphiques du tableau de bord -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
     
     <!-- Police Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -54,31 +59,37 @@
     </header>
 
     <!-- Navigation principale (Onglets) -->
-    <div id="main-nav" class="sticky top-0 z-30 hidden px-4 sm:px-6 lg:px-8 py-4"> <!-- Ajout de padding vertical -->
+    <div id="main-nav" class="sticky top-0 z-30 hidden px-4 sm:px-6 lg:px-8 py-4">
         <div class="nav-shell max-w-6xl mx-auto">
-            <div id="main-nav-container" class="px-3 sm:px-6 lg:px-8 flex items-center gap-3 justify-between">
-                <div class="flex items-center gap-3 flex-1">
-                    <button id="mobile-menu-button" type="button" aria-label="Ouvrir le menu" class="hamburger-button lg:hidden">
+            <div id="main-nav-container" class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div class="flex items-center justify-between lg:justify-start gap-3 w-full">
+                    <div class="flex-1">
+                        <p id="nav-mobile-greeting" class="lg:hidden text-center text-lg font-semibold text-primary-dark"></p>
+                        <div class="nav-tab-group hidden lg:flex items-center gap-3 overflow-x-auto">
+                            <button id="nav-tab-analytics" data-page="analytics" class="nav-tab nav-tab-inactive admin-only">Analyse / Stats</button>
+                            <button id="nav-tab-scanner" data-page="scanner" class="nav-tab nav-tab-active">Scanner</button>
+                            <button id="nav-tab-reports" data-page="reports" class="nav-tab nav-tab-inactive admin-only">Rapports</button>
+                            <button id="nav-tab-stores" data-page="stores" class="nav-tab nav-tab-inactive admin-only">Magasins</button>
+                            <button id="nav-tab-forms" data-page="forms" class="nav-tab nav-tab-inactive admin-only">Formulaires</button>
+                            <button id="nav-tab-admin" data-page="admin" class="nav-tab nav-tab-inactive admin-only">Admin</button>
+                        </div>
+                    </div>
+                    <button id="mobile-menu-button" type="button" aria-label="Ouvrir le menu" class="hamburger-button lg:hidden ml-3">
                         <span></span>
                         <span></span>
                         <span></span>
                     </button>
-                    <div class="flex items-center gap-3 overflow-x-auto w-full">
-                        <button id="nav-tab-scanner" data-page="scanner" class="nav-tab nav-tab-active">Scanner</button>
-                        <!-- Onglets Admin seulement -->
-                        <button id="nav-tab-reports" data-page="reports" class="nav-tab nav-tab-inactive admin-only">Rapports</button>
-                        <button id="nav-tab-stores" data-page="stores" class="nav-tab nav-tab-inactive admin-only">Magasins</button>
-                        <button id="nav-tab-forms" data-page="forms" class="nav-tab nav-tab-inactive admin-only">Formulaires</button>
-                        <button id="nav-tab-admin" data-page="admin" class="nav-tab nav-tab-inactive admin-only">Admin</button>
-                    </div>
                 </div>
 
-                <!-- Panneau utilisateur déplacé ici -->
                 <div id="nav-user-info" class="hidden md:flex items-center gap-3 text-sm">
                     <span id="user-welcome-display-nav" class="text-base font-semibold hidden text-primary-dark"></span>
                     <span id="user-role-display-nav" class="badge bg-primary/20 text-primary hidden"></span>
                     <button id="auth-button-nav" class="btn btn-secondary text-sm px-4 py-1.5">Déconnexion</button>
                 </div>
+            </div>
+            <div class="lg:hidden text-center py-4 border-t border-gray-100">
+                <p id="mobile-main-welcome" class="text-2xl font-bold text-primary-dark"></p>
+                <p class="text-sm text-gray-500">Ouvrez le menu pour accéder aux actions.</p>
             </div>
         </div>
     </div>
@@ -121,6 +132,7 @@
             <div class="mobile-nav-links" id="mobile-nav-links">
                 <p class="mobile-nav-section-title">Navigation</p>
                 <button type="button" class="mobile-nav-link" data-page="scanner">Scanner</button>
+                <button type="button" class="mobile-nav-link admin-only-mobile" data-page="analytics">Analyse / Stats</button>
                 <button type="button" class="mobile-nav-link admin-only-mobile" data-page="reports">Rapports</button>
                 <button type="button" class="mobile-nav-link admin-only-mobile" data-page="stores">Magasins</button>
                 <button type="button" class="mobile-nav-link admin-only-mobile" data-page="forms">Formulaires</button>
@@ -346,29 +358,41 @@
         <div id="page-forms" class="page hidden">
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <!-- Colonne 1: Créateur de formulaire -->
-                <div class="lg:col-span-1 card p-6 h-fit">
-                    <h2 class="text-xl font-bold mb-4 text-primary-dark">Créer/Modifier un Formulaire</h2>
-                    <form id="create-form-builder">
+                <div class="lg:col-span-1 card p-6 h-fit form-builder-panel">
+                    <div class="space-y-2 mb-6 text-center lg:text-left">
+                        <p class="text-xs uppercase tracking-[0.35em] text-secondary font-semibold">Assistant visuel</p>
+                        <h2 class="text-3xl font-extrabold text-primary-dark">Composez votre formulaire</h2>
+                        <p class="text-sm text-gray-500">Titres clairs, étapes bien séparées et une lisibilité pensée pour tout le monde.</p>
+                    </div>
+                    <form id="create-form-builder" class="space-y-6">
                         <input type="hidden" id="form-builder-id">
-                        <div class="mb-4">
-                            <label for="form-builder-title" class="block text-gray-700 font-medium mb-1">Titre du Formulaire</label>
-                            <input type="text" id="form-builder-title" class="form-field" required>
-                        </div>
-                        
-                        <h3 class="font-semibold mb-2 text-primary-dark">Champs du formulaire</h3>
-                        <div id="form-builder-fields" class="space-y-4 mb-4">
-                            <!-- Champs dynamiques ajoutés ici -->
+                        <div>
+                            <label for="form-builder-title" class="form-builder-label">Titre du formulaire</label>
+                            <p class="form-builder-helper">Donnez un nom simple et compréhensible.</p>
+                            <input type="text" id="form-builder-title" class="form-field form-builder-input" required>
                         </div>
 
-                        <button type="button" id="add-form-field-btn" class="w-full bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300 mb-4 font-medium">
-                            + Ajouter un champ
-                        </button>
-                        <button type="submit" class="w-full btn btn-primary">
-                            Enregistrer le Formulaire
-                        </button>
-                        <button type="button" id="cancel-edit-form-btn" class="w-full btn btn-gray mt-2 hidden">
-                            Annuler l'édition
-                        </button>
+                        <div>
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-lg font-semibold text-primary-dark">Champs du formulaire</h3>
+                                <span class="text-xs text-gray-400">Faites simple, étape par étape.</span>
+                            </div>
+                            <div id="form-builder-fields" class="space-y-4 mt-4">
+                                <!-- Champs dynamiques ajoutés ici -->
+                            </div>
+                        </div>
+
+                        <div class="space-y-3">
+                            <button type="button" id="add-form-field-btn" class="form-builder-action">
+                                <span class="text-xl">＋</span> Ajouter un champ
+                            </button>
+                            <button type="submit" class="w-full btn btn-primary text-base py-3">
+                                Enregistrer le formulaire
+                            </button>
+                            <button type="button" id="cancel-edit-form-btn" class="w-full btn btn-gray mt-2 hidden">
+                                Annuler l'édition
+                            </button>
+                        </div>
                     </form>
                 </div>
 
@@ -378,6 +402,144 @@
                     <div id="forms-list" class="space-y-4">
                         <!-- Contenu généré par JS -->
                         <p class="text-gray-500">Aucun formulaire créé pour le moment.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= PAGE 4.5: ANALYSE / STATS ================= -->
+        <div id="page-analytics" class="page hidden">
+            <div class="space-y-6">
+                <div class="card p-6 space-y-6">
+                    <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-[0.25em] text-secondary">Vue administrateur</p>
+                            <h2 class="text-3xl font-bold text-primary-dark">Analyse &amp; Statistiques</h2>
+                            <p class="text-sm text-gray-500">Toutes les données sont mises à jour en direct à partir des rapports validés.</p>
+                        </div>
+                        <div class="flex flex-col gap-2 text-sm text-gray-500">
+                            <span class="font-semibold text-primary-dark">Besoin du scanner ?</span>
+                            <span>Ouvrez le menu hamburger pour y accéder depuis votre mobile.</span>
+                        </div>
+                    </div>
+
+                    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                        <div class="analytics-kpi" id="analytics-kpi-visits">
+                            <p class="analytics-kpi-label">Visites (30 j)</p>
+                            <p class="analytics-kpi-value" id="kpi-visits">0</p>
+                        </div>
+                        <div class="analytics-kpi" id="analytics-kpi-stores">
+                            <p class="analytics-kpi-label">Magasins actifs</p>
+                            <p class="analytics-kpi-value" id="kpi-stores">0</p>
+                        </div>
+                        <div class="analytics-kpi" id="analytics-kpi-forms">
+                            <p class="analytics-kpi-label">Formulaires utilisés</p>
+                            <p class="analytics-kpi-value" id="kpi-forms">0</p>
+                        </div>
+                        <div class="analytics-kpi" id="analytics-kpi-trend">
+                            <p class="analytics-kpi-label">Variation 7 j</p>
+                            <p class="analytics-kpi-value" id="kpi-trend">0%</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3">
+                        <h3 class="text-lg font-semibold text-primary-dark">Filtres avancés</h3>
+                        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                            <div>
+                                <label class="block text-gray-700 font-medium mb-1" for="analytics-filter-store">Magasins</label>
+                                <select id="analytics-filter-store" class="form-multiselect" multiple data-placeholder="Tous les magasins"></select>
+                            </div>
+                            <div>
+                                <label class="block text-gray-700 font-medium mb-1" for="analytics-filter-user">Utilisateurs</label>
+                                <select id="analytics-filter-user" class="form-multiselect" multiple data-placeholder="Tous les utilisateurs"></select>
+                            </div>
+                            <div>
+                                <label class="block text-gray-700 font-medium mb-1" for="analytics-filter-form">Formulaires</label>
+                                <select id="analytics-filter-form" class="form-multiselect" multiple data-placeholder="Tous les formulaires"></select>
+                            </div>
+                            <div>
+                                <label class="block text-gray-700 font-medium mb-1" for="analytics-filter-type">Type de formulaire</label>
+                                <select id="analytics-filter-type" class="form-multiselect" multiple data-placeholder="Tous les types"></select>
+                            </div>
+                            <div>
+                                <label class="block text-gray-700 font-medium mb-1" for="analytics-filter-from">Date de début</label>
+                                <input type="date" id="analytics-filter-from" class="form-field">
+                            </div>
+                            <div>
+                                <label class="block text-gray-700 font-medium mb-1" for="analytics-filter-to">Date de fin</label>
+                                <input type="date" id="analytics-filter-to" class="form-field">
+                            </div>
+                            <div class="md:col-span-2 xl:col-span-3">
+                                <label class="block text-gray-700 font-medium mb-1">Raccourcis de dates</label>
+                                <div id="analytics-date-presets" class="date-preset-grid" data-target-from="analytics-filter-from" data-target-to="analytics-filter-to">
+                                    <button type="button" data-range="today">Aujourd'hui</button>
+                                    <button type="button" data-range="yesterday">Hier</button>
+                                    <button type="button" data-range="thisWeek">Cette semaine</button>
+                                    <button type="button" data-range="lastWeek">La semaine dernière</button>
+                                    <button type="button" data-range="lastMonth">Le mois dernier</button>
+                                    <button type="button" data-range="last3Months">Les 3 derniers mois</button>
+                                    <button type="button" data-range="last6Months">Les 6 derniers mois</button>
+                                    <button type="button" data-range="thisYear">Cette année</button>
+                                    <button type="button" data-range="last365">Les 365 derniers jours</button>
+                                    <button type="button" data-range="all">Depuis le début</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex justify-end">
+                            <button id="analytics-reset-filters" type="button" class="btn btn-gray">Réinitialiser</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid gap-6">
+                    <div class="card p-6 space-y-4">
+                        <div class="flex flex-col gap-2">
+                            <h3 class="text-xl font-semibold text-primary-dark">Nombre de visites</h3>
+                            <p class="text-sm text-gray-500">Visualisez les tendances quotidiennes, hebdomadaires et mensuelles.</p>
+                        </div>
+                        <div class="grid gap-4 md:grid-cols-3">
+                            <div class="analytics-mini-chart">
+                                <p class="analytics-mini-title">Jour</p>
+                                <canvas id="chart-visits-daily"></canvas>
+                            </div>
+                            <div class="analytics-mini-chart">
+                                <p class="analytics-mini-title">Semaine</p>
+                                <canvas id="chart-visits-weekly"></canvas>
+                            </div>
+                            <div class="analytics-mini-chart">
+                                <p class="analytics-mini-title">Mois</p>
+                                <canvas id="chart-visits-monthly"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid gap-6 xl:grid-cols-2">
+                        <div class="card p-6 space-y-4">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-xl font-semibold text-primary-dark">Top magasins actifs</h3>
+                                <span class="text-xs uppercase tracking-[0.3em] text-gray-400">Top 5</span>
+                            </div>
+                            <canvas id="chart-top-stores" height="260"></canvas>
+                        </div>
+                        <div class="card p-6 space-y-4">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-xl font-semibold text-primary-dark">Top formulaires utilisés</h3>
+                                <span class="text-xs uppercase tracking-[0.3em] text-gray-400">Top 5</span>
+                            </div>
+                            <canvas id="chart-top-forms" height="260"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="grid gap-6 xl:grid-cols-2">
+                        <div class="card p-6 space-y-4">
+                            <h3 class="text-xl font-semibold text-primary-dark">Évolution des formulaires</h3>
+                            <p class="text-sm text-gray-500">Créations vs validations sur les 12 derniers mois.</p>
+                            <canvas id="chart-forms-evolution" height="280"></canvas>
+                        </div>
+                        <div class="card p-6 space-y-4">
+                            <h3 class="text-xl font-semibold text-primary-dark">Répartition par type de formulaire</h3>
+                            <canvas id="chart-forms-distribution" height="280"></canvas>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -399,28 +561,21 @@
                 <!-- Filtres -->
                 <div class="space-y-4">
                     <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                        <div>
-                            <label for="report-filter-store" class="block text-gray-700 font-medium mb-1">Filtrer par magasin</label>
-                            <select id="report-filter-store" class="form-field custom-select">
-                                <option value="all">Tous les magasins</option>
-                                <!-- Options remplies par JS -->
-                            </select>
-                        </div>
-                        <div>
-                            <label for="report-filter-user" class="block text-gray-700 font-medium mb-1">Filtrer par intervenant</label>
-                            <select id="report-filter-user" class="form-field custom-select">
-                                <option value="all">Tous les intervenants</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label for="report-filter-form" class="block text-gray-700 font-medium mb-1">Filtrer par formulaire</label>
-                            <select id="report-filter-form" class="form-field custom-select">
-                                <option value="all">Tous les formulaires</option>
-                            </select>
-                        </div>
                         <div class="md:col-span-2 xl:col-span-3">
                             <label for="report-search-input" class="block text-gray-700 font-medium mb-1">Rechercher</label>
                             <input id="report-search-input" type="search" placeholder="Magasin, intervenant ou formulaire" class="form-field" />
+                        </div>
+                        <div>
+                            <label for="report-filter-store" class="block text-gray-700 font-medium mb-1">Magasins</label>
+                            <select id="report-filter-store" class="form-multiselect" multiple data-placeholder="Tous les magasins"></select>
+                        </div>
+                        <div>
+                            <label for="report-filter-user" class="block text-gray-700 font-medium mb-1">Intervenants</label>
+                            <select id="report-filter-user" class="form-multiselect" multiple data-placeholder="Tous les intervenants"></select>
+                        </div>
+                        <div>
+                            <label for="report-filter-form" class="block text-gray-700 font-medium mb-1">Formulaires</label>
+                            <select id="report-filter-form" class="form-multiselect" multiple data-placeholder="Tous les formulaires"></select>
                         </div>
                         <div>
                             <label for="report-filter-from" class="block text-gray-700 font-medium mb-1">Date de début</label>
@@ -430,8 +585,23 @@
                             <label for="report-filter-to" class="block text-gray-700 font-medium mb-1">Date de fin</label>
                             <input id="report-filter-to" type="date" class="form-field">
                         </div>
+                        <div class="md:col-span-2 xl:col-span-3">
+                            <label class="block text-gray-700 font-medium mb-1">Raccourcis de dates</label>
+                            <div id="report-date-presets" class="date-preset-grid" data-target-from="report-filter-from" data-target-to="report-filter-to">
+                                <button type="button" data-range="today">Aujourd'hui</button>
+                                <button type="button" data-range="yesterday">Hier</button>
+                                <button type="button" data-range="thisWeek">Cette semaine</button>
+                                <button type="button" data-range="lastWeek">La semaine dernière</button>
+                                <button type="button" data-range="lastMonth">Le mois dernier</button>
+                                <button type="button" data-range="last3Months">Les 3 derniers mois</button>
+                                <button type="button" data-range="last6Months">Les 6 derniers mois</button>
+                                <button type="button" data-range="thisYear">Cette année</button>
+                                <button type="button" data-range="last365">Les 365 derniers jours</button>
+                                <button type="button" data-range="all">Depuis le début</button>
+                            </div>
+                        </div>
                     </div>
-                    <div class="flex flex-wrap gap-3">
+                    <div class="flex flex-wrap gap-3 justify-end">
                         <button id="report-reset-filters" type="button" class="btn btn-gray">Réinitialiser les filtres</button>
                     </div>
                 </div>
@@ -499,6 +669,20 @@
                             <div class="w-full sm:w-64">
                                 <label for="user-search-input" class="block text-sm font-medium text-gray-700 mb-1">Recherche</label>
                                 <input id="user-search-input" type="search" class="form-field" placeholder="Nom, email ou rôle">
+                            </div>
+                        </div>
+                        <div class="grid gap-4 md:grid-cols-3">
+                            <div>
+                                <label for="user-filter-role" class="block text-sm font-medium text-gray-700 mb-1">Rôles</label>
+                                <select id="user-filter-role" class="form-multiselect" multiple data-placeholder="Tous les rôles"></select>
+                            </div>
+                            <div>
+                                <label for="user-filter-function" class="block text-sm font-medium text-gray-700 mb-1">Fonctions</label>
+                                <select id="user-filter-function" class="form-multiselect" multiple data-placeholder="Toutes les fonctions"></select>
+                            </div>
+                            <div>
+                                <label for="user-filter-status" class="block text-sm font-medium text-gray-700 mb-1">Statut</label>
+                                <select id="user-filter-status" class="form-multiselect" multiple data-placeholder="Tous les statuts"></select>
                             </div>
                         </div>
                         <div id="users-list" class="space-y-3">
@@ -570,22 +754,16 @@
             <form id="excel-export-form" class="space-y-4">
                 <div class="grid gap-4 md:grid-cols-2">
                     <div>
-                        <label for="excel-filter-store" class="block text-gray-700 font-medium mb-1">Magasin</label>
-                        <select id="excel-filter-store" class="form-field custom-select">
-                            <option value="all">Tous les magasins</option>
-                        </select>
+                        <label for="excel-filter-store" class="block text-gray-700 font-medium mb-1">Magasins</label>
+                        <select id="excel-filter-store" class="form-multiselect" multiple data-placeholder="Tous les magasins"></select>
                     </div>
                     <div>
-                        <label for="excel-filter-user" class="block text-gray-700 font-medium mb-1">Intervenant</label>
-                        <select id="excel-filter-user" class="form-field custom-select">
-                            <option value="all">Tous les intervenants</option>
-                        </select>
+                        <label for="excel-filter-user" class="block text-gray-700 font-medium mb-1">Intervenants</label>
+                        <select id="excel-filter-user" class="form-multiselect" multiple data-placeholder="Tous les intervenants"></select>
                     </div>
                     <div>
-                        <label for="excel-filter-form" class="block text-gray-700 font-medium mb-1">Formulaire</label>
-                        <select id="excel-filter-form" class="form-field custom-select">
-                            <option value="all">Tous les formulaires</option>
-                        </select>
+                        <label for="excel-filter-form" class="block text-gray-700 font-medium mb-1">Formulaires</label>
+                        <select id="excel-filter-form" class="form-multiselect" multiple data-placeholder="Tous les formulaires"></select>
                     </div>
                     <div>
                         <label for="excel-filter-from" class="block text-gray-700 font-medium mb-1">Date de début</label>
@@ -594,6 +772,21 @@
                     <div>
                         <label for="excel-filter-to" class="block text-gray-700 font-medium mb-1">Date de fin</label>
                         <input type="date" id="excel-filter-to" class="form-field">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-gray-700 font-medium mb-1">Raccourcis de dates</label>
+                        <div id="excel-date-presets" class="date-preset-grid" data-target-from="excel-filter-from" data-target-to="excel-filter-to">
+                            <button type="button" data-range="today">Aujourd'hui</button>
+                            <button type="button" data-range="yesterday">Hier</button>
+                            <button type="button" data-range="thisWeek">Cette semaine</button>
+                            <button type="button" data-range="lastWeek">La semaine dernière</button>
+                            <button type="button" data-range="lastMonth">Le mois dernier</button>
+                            <button type="button" data-range="last3Months">Les 3 derniers mois</button>
+                            <button type="button" data-range="last6Months">Les 6 derniers mois</button>
+                            <button type="button" data-range="thisYear">Cette année</button>
+                            <button type="button" data-range="last365">Les 365 derniers jours</button>
+                            <button type="button" data-range="all">Depuis le début</button>
+                        </div>
                     </div>
                 </div>
                 <div class="flex flex-wrap justify-end gap-2">

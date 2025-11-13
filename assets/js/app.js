@@ -83,15 +83,100 @@ let reportSearchTerm = '';
 let openReportStoreIds = new Set();
 let allUsers = [];
 let userSearchTerm = '';
-let reportFilterStoreId = 'all';
-let reportFilterUserId = 'all';
-let reportFilterFormId = 'all';
+let reportFilterStoreIds = [];
+let reportFilterUserIds = [];
+let reportFilterFormIds = [];
 let reportFilterFrom = '';
 let reportFilterTo = '';
+let analyticsFilterStoreIds = [];
+let analyticsFilterUserIds = [];
+let analyticsFilterFormIds = [];
+let analyticsFilterTypeKeys = [];
+let analyticsFilterFrom = '';
+let analyticsFilterTo = '';
+let excelFilterStoreIds = [];
+let excelFilterUserIds = [];
+let excelFilterFormIds = [];
+let excelFilterFrom = '';
+let excelFilterTo = '';
+let userFilterRoles = [];
+let userFilterFunctions = [];
+let userFilterStatuses = [];
 let isCreateUserFormOpen = false;
 let currentBulkQrData = [];
 let messageTimeoutId = null;
 let messageActionHandler = null;
+
+const multiSelectInstances = new Map();
+const analyticsCharts = {};
+
+const MULTI_SELECT_CONFIG = {
+    'report-filter-store': { placeholder: 'Tous les magasins' },
+    'report-filter-user': { placeholder: 'Tous les intervenants' },
+    'report-filter-form': { placeholder: 'Tous les formulaires' },
+    'excel-filter-store': { placeholder: 'Tous les magasins' },
+    'excel-filter-user': { placeholder: 'Tous les intervenants' },
+    'excel-filter-form': { placeholder: 'Tous les formulaires' },
+    'analytics-filter-store': { placeholder: 'Tous les magasins' },
+    'analytics-filter-user': { placeholder: 'Tous les utilisateurs' },
+    'analytics-filter-form': { placeholder: 'Tous les formulaires' },
+    'analytics-filter-type': { placeholder: 'Tous les types' },
+    'user-filter-role': { placeholder: 'Tous les rôles' },
+    'user-filter-function': { placeholder: 'Toutes les fonctions' },
+    'user-filter-status': { placeholder: 'Tous les statuts' }
+};
+
+const DATE_PRESETS = {
+    today: () => ({ from: formatDateInput(new Date()), to: formatDateInput(new Date()) }),
+    yesterday: () => {
+        const d = new Date();
+        d.setDate(d.getDate() - 1);
+        return { from: formatDateInput(d), to: formatDateInput(d) };
+    },
+    thisWeek: () => {
+        const now = new Date();
+        const start = startOfWeek(now);
+        const end = endOfWeek(now);
+        return { from: formatDateInput(start), to: formatDateInput(end) };
+    },
+    lastWeek: () => {
+        const now = new Date();
+        now.setDate(now.getDate() - 7);
+        const start = startOfWeek(now);
+        const end = endOfWeek(now);
+        return { from: formatDateInput(start), to: formatDateInput(end) };
+    },
+    lastMonth: () => {
+        const start = startOfMonth(shiftMonth(new Date(), -1));
+        const end = endOfMonth(start);
+        return { from: formatDateInput(start), to: formatDateInput(end) };
+    },
+    last3Months: () => {
+        const end = new Date();
+        const start = shiftMonth(new Date(), -3);
+        start.setDate(1);
+        return { from: formatDateInput(start), to: formatDateInput(end) };
+    },
+    last6Months: () => {
+        const end = new Date();
+        const start = shiftMonth(new Date(), -6);
+        start.setDate(1);
+        return { from: formatDateInput(start), to: formatDateInput(end) };
+    },
+    thisYear: () => {
+        const now = new Date();
+        const start = new Date(now.getFullYear(), 0, 1);
+        const end = new Date(now.getFullYear(), 11, 31);
+        return { from: formatDateInput(start), to: formatDateInput(end) };
+    },
+    last365: () => {
+        const end = new Date();
+        const start = new Date();
+        start.setDate(start.getDate() - 364);
+        return { from: formatDateInput(start), to: formatDateInput(end) };
+    },
+    all: () => ({ from: '', to: '' })
+};
 
 captureDeepLinkFromUrl();
 
@@ -146,12 +231,252 @@ function getFirstName(profile) {
     return '';
 }
 
+function formatDateInput(date) {
+    if (!date) return '';
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function startOfWeek(date) {
+    const result = new Date(date);
+    const day = result.getDay();
+    const diff = (day + 6) % 7; // Lundi = 0
+    result.setDate(result.getDate() - diff);
+    result.setHours(0, 0, 0, 0);
+    return result;
+}
+
+function endOfWeek(date) {
+    const result = startOfWeek(date);
+    result.setDate(result.getDate() + 6);
+    result.setHours(23, 59, 59, 999);
+    return result;
+}
+
+function startOfMonth(date) {
+    const result = new Date(date.getFullYear(), date.getMonth(), 1);
+    result.setHours(0, 0, 0, 0);
+    return result;
+}
+
+function endOfMonth(date) {
+    const result = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+    result.setHours(23, 59, 59, 999);
+    return result;
+}
+
+function shiftMonth(date, delta) {
+    const result = new Date(date);
+    result.setMonth(result.getMonth() + delta);
+    return result;
+}
+
+function initializeMultiSelectControls() {
+    Object.keys(MULTI_SELECT_CONFIG).forEach(id => ensureMultiSelect(id));
+}
+
+function ensureMultiSelect(id) {
+    if (typeof Choices === 'undefined') return null;
+    const element = getEl(id);
+    if (!element) return null;
+    if (!element.hasAttribute('multiple')) {
+        element.setAttribute('multiple', 'multiple');
+    }
+    if (!multiSelectInstances.has(id)) {
+        const config = MULTI_SELECT_CONFIG[id] || {};
+        const instance = new Choices(element, {
+            removeItemButton: true,
+            searchResultLimit: 10,
+            searchPlaceholderValue: 'Rechercher...',
+            placeholder: true,
+            placeholderValue: config.placeholder || '',
+            shouldSort: false,
+            itemSelectText: ''
+        });
+        multiSelectInstances.set(id, instance);
+    }
+    element.dataset.choicesActive = 'true';
+    return multiSelectInstances.get(id);
+}
+
+function setMultiSelectOptions(id, options = [], selectedValues = []) {
+    const instance = ensureMultiSelect(id);
+    const element = getEl(id);
+    if (!instance || !element) return Array.isArray(selectedValues) ? [...selectedValues] : [];
+
+    const sanitized = Array.isArray(selectedValues)
+        ? selectedValues.filter(value => options.some(opt => opt.value === value))
+        : [];
+
+    instance.clearChoices();
+    instance.setChoices(options.map(opt => ({ value: opt.value, label: opt.label })), 'value', 'label', true);
+    instance.removeActiveItems();
+    if (sanitized.length) {
+        instance.setChoiceByValue(sanitized);
+    }
+
+    return sanitized;
+}
+
+function syncMultiSelectSelection(id, values = []) {
+    const instance = ensureMultiSelect(id);
+    if (!instance) return;
+    instance.removeActiveItems();
+    if (values.length) {
+        instance.setChoiceByValue(values);
+    }
+}
+
+function getMultiSelectSelectedValues(id) {
+    const instance = multiSelectInstances.get(id);
+    if (instance) {
+        const raw = instance.getValue(true);
+        if (Array.isArray(raw)) {
+            return raw.filter(Boolean);
+        }
+        return raw ? [raw] : [];
+    }
+    const element = getEl(id);
+    if (!element) return [];
+    return Array.from(element.selectedOptions || [])
+        .map(opt => opt.value)
+        .filter(value => value && value.length > 0);
+}
+
+function clearMultiSelect(id) {
+    const instance = multiSelectInstances.get(id);
+    if (instance) {
+        instance.removeActiveItems();
+        return;
+    }
+    const element = getEl(id);
+    if (element) {
+        Array.from(element.options).forEach(option => option.selected = false);
+    }
+}
+
+function setupDatePresetControls(containerId, onApply) {
+    const container = typeof containerId === 'string' ? getEl(containerId) : containerId;
+    if (!container) return;
+    container.addEventListener('click', (event) => {
+        const button = event.target.closest('button[data-range]');
+        if (!button) return;
+        const presetKey = button.dataset.range;
+        const rangeGenerator = DATE_PRESETS[presetKey] || DATE_PRESETS.all;
+        const range = rangeGenerator();
+
+        const fromInputId = container.dataset.targetFrom;
+        const toInputId = container.dataset.targetTo;
+        if (fromInputId) {
+            const fromInput = getEl(fromInputId);
+            if (fromInput) {
+                fromInput.value = range.from || '';
+            }
+        }
+        if (toInputId) {
+            const toInput = getEl(toInputId);
+            if (toInput) {
+                toInput.value = range.to || '';
+            }
+        }
+
+        if (typeof onApply === 'function') {
+            onApply(range.from || '', range.to || '', presetKey);
+        }
+    });
+}
+
+function getFormTypeKey(form) {
+    if (!form) return 'autre';
+    const raw = form.type || form.category || form.title || 'Autre';
+    return raw.toLowerCase();
+}
+
+function getFormTypeLabel(form) {
+    if (!form) return 'Autre';
+    return form.type || form.category || form.title || 'Autre';
+}
+
+function normalizeTimestamp(value) {
+    if (!value) return null;
+    if (typeof value.toDate === 'function') return value.toDate();
+    if (value instanceof Date) return value;
+    if (typeof value.seconds === 'number') {
+        return new Date(value.seconds * 1000);
+    }
+    return null;
+}
+
+function applyAlphaToColor(color, alpha = 0.2) {
+    if (!color) {
+        return `rgba(0,0,0,${alpha})`;
+    }
+
+    const normalizedAlpha = Math.min(Math.max(alpha, 0), 1);
+    if (color.startsWith('#')) {
+        let hex = color.slice(1);
+        if (hex.length === 3) {
+            hex = hex.split('').map(ch => ch + ch).join('');
+        }
+        if (hex.length !== 6) {
+            return color;
+        }
+        const bigint = parseInt(hex, 16);
+        const r = (bigint >> 16) & 255;
+        const g = (bigint >> 8) & 255;
+        const b = bigint & 255;
+        return `rgba(${r}, ${g}, ${b}, ${normalizedAlpha})`;
+    }
+
+    if (color.startsWith('rgb(')) {
+        return color.replace('rgb', 'rgba').replace(')', `, ${normalizedAlpha})`);
+    }
+
+    return color;
+}
+
+function formatRoleLabel(role) {
+    switch ((role || 'user').toLowerCase()) {
+        case 'admin':
+            return 'Administrateur';
+        case 'new':
+            return 'En attente';
+        case 'user':
+        default:
+            return 'Utilisateur';
+    }
+}
+
+function getUserStatusKey(user = {}) {
+    if (user.status) return user.status;
+    if (user.mustChangePassword) return 'pending-password';
+    return 'active';
+}
+
+function getUserStatusLabel(key) {
+    switch ((key || 'active').toLowerCase()) {
+        case 'pending':
+            return 'En attente';
+        case 'invited':
+            return 'Invité';
+        case 'pending-password':
+            return 'MDP à changer';
+        case 'active':
+        default:
+            return 'Actif';
+    }
+}
+
 function updateWelcomeMessage() {
     // MODIFIÉ: Mettre à jour les panneaux utilisateur
     const welcomeDisplay = getEl('user-welcome-display'); // Ancien (caché)
     const welcomeDisplayNav = getEl('user-welcome-display-nav'); // Nouveau (dans la nav)
     const mobileWelcome = getEl('mobile-user-name');
     const mobileEmail = getEl('mobile-user-email');
+    const navMobileGreeting = getEl('nav-mobile-greeting');
+    const mobileHero = getEl('mobile-main-welcome');
 
     const firstName = getFirstName(currentUserProfile);
     const fullName = getDisplayName(currentUserProfile);
@@ -180,6 +505,12 @@ function updateWelcomeMessage() {
     }
     if (mobileEmail) {
         mobileEmail.textContent = baseEmail;
+    }
+    if (navMobileGreeting) {
+        navMobileGreeting.textContent = message;
+    }
+    if (mobileHero) {
+        mobileHero.textContent = message || 'Bienvenue';
     }
 
     const mobileRoleDisplay = getEl('mobile-role-display');
@@ -383,38 +714,23 @@ function toggleCreateUserForm() {
 }
 
 function updateReportUserFilter() {
-    const userSelect = getEl('report-filter-user');
-    if (!userSelect) return;
-
-    const previousValue = reportFilterUserId;
-    userSelect.innerHTML = '<option value="all">Tous les intervenants</option>';
-
     const sortedUsers = [...allUsers]
         .filter(user => user && user.id)
         .sort((a, b) => {
             const nameA = (getDisplayName(a) || a.email || '').toLowerCase();
             const nameB = (getDisplayName(b) || b.email || '').toLowerCase();
             return nameA.localeCompare(nameB);
+        })
+        .map(user => {
+            let label = getDisplayName(user) || user.email || 'Utilisateur';
+            if (user.fonction) {
+                label += ` • ${user.fonction}`;
+            }
+            return { value: user.id, label };
         });
 
-    sortedUsers.forEach(user => {
-        const option = document.createElement('option');
-        option.value = user.id;
-
-        let label = getDisplayName(user) || user.email || 'Utilisateur';
-        if (user.fonction) {
-            label += ` • ${user.fonction}`;
-        }
-        option.textContent = label;
-        userSelect.appendChild(option);
-    });
-
-    if (sortedUsers.some(user => user.id === previousValue)) {
-        userSelect.value = previousValue;
-    } else {
-        reportFilterUserId = 'all';
-        userSelect.value = 'all';
-    }
+    reportFilterUserIds = setMultiSelectOptions('report-filter-user', sortedUsers, reportFilterUserIds);
+    analyticsFilterUserIds = setMultiSelectOptions('analytics-filter-user', sortedUsers, analyticsFilterUserIds);
 }
 
 function getSecondaryAuthInstance() {
@@ -675,6 +991,9 @@ function loadAllData(role) {
         updateAllSelects();
         console.log("Formulaires chargés:", allForms.length);
         triggerDeepLinkCheck();
+        if (role === 'admin') {
+            updateAnalyticsDashboard();
+        }
     }, (error) => console.error("Erreur chargement formulaires:", error));
 
     // 2. Charger les types d'appareils
@@ -694,6 +1013,9 @@ function loadAllData(role) {
         console.log("Magasins chargés:", allStores.length);
         if (equipmentListenerReady && role === 'admin') renderStoresList();
         triggerDeepLinkCheck();
+        if (role === 'admin') {
+            updateAnalyticsDashboard();
+        }
     }, (error) => console.error("Erreur chargement magasins:", error));
 
     // 4. Charger les équipements
@@ -716,6 +1038,9 @@ function loadAllData(role) {
         });
         console.log("Rapports chargés:", allReports.length);
         renderReportsList();
+        if (role === 'admin') {
+            updateAnalyticsDashboard();
+        }
     }, (error) => console.error("Erreur chargement rapports:", error));
 
     // 6. Charger les utilisateurs (Admin seulement)
@@ -733,7 +1058,6 @@ function loadAllData(role) {
 function updateAllSelects() {
     const storeSelects = [
         getEl('equip-store-select'),
-        getEl('report-filter-store')
     ];
 
     const formSelects = [
@@ -743,13 +1067,13 @@ function updateAllSelects() {
 
     storeSelects.forEach(sel => {
         if(sel) {
-            const previousValue = sel.id === 'report-filter-store' ? reportFilterStoreId : sel.value;
-            const firstOptionValue = sel.options[0] ? sel.options[0].value : "all";
-            const firstOptionText = sel.options[0] ? sel.options[0].text : "Tous les magasins";
+            const previousValue = sel.value;
+            const firstOptionValue = sel.options[0] ? sel.options[0].value : "";
+            const firstOptionText = sel.options[0] ? sel.options[0].text : "Sélectionnez";
 
-            sel.innerHTML = `<option value="${firstOptionValue}">${firstOptionText}</option>`; // Garder la première option
+            sel.innerHTML = `<option value="${firstOptionValue}">${firstOptionText}</option>`;
 
-            allStores.sort((a,b) => (a.name || '').localeCompare(b.name || '')).forEach(store => {
+            allStores.slice().sort((a,b) => (a.name || '').localeCompare(b.name || '')).forEach(store => {
                 const storeNameLabel = escapeHtml(store.name || 'Magasin');
                 const storeCodeLabel = store.code ? ` (${escapeHtml(store.code)})` : '';
                 sel.innerHTML += `<option value="${store.id}">${storeNameLabel}${storeCodeLabel}</option>`;
@@ -757,9 +1081,6 @@ function updateAllSelects() {
 
             if (Array.from(sel.options).some(option => option.value === previousValue)) {
                 sel.value = previousValue;
-            } else if (sel.id === 'report-filter-store') {
-                reportFilterStoreId = 'all';
-                sel.value = 'all';
             }
         }
     });
@@ -774,21 +1095,35 @@ function updateAllSelects() {
          }
     });
 
-    const reportFormSelect = getEl('report-filter-form');
-    if (reportFormSelect) {
-        const previousValue = reportFilterFormId;
-        reportFormSelect.innerHTML = '<option value="all">Tous les formulaires</option>';
-        allForms.sort((a,b) => a.title.localeCompare(b.title)).forEach(form => {
-            reportFormSelect.innerHTML += `<option value="${form.id}">${form.title}</option>`;
-        });
+    const storeOptions = allStores.slice().sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(store => {
+        const code = store.code ? ` (${store.code})` : '';
+        return { value: store.id, label: `${store.name || 'Magasin'}${code}` };
+    });
 
-        if (allForms.some(form => form.id === previousValue)) {
-            reportFormSelect.value = previousValue;
-        } else {
-            reportFilterFormId = 'all';
-            reportFormSelect.value = 'all';
+    reportFilterStoreIds = setMultiSelectOptions('report-filter-store', storeOptions, reportFilterStoreIds);
+    analyticsFilterStoreIds = setMultiSelectOptions('analytics-filter-store', storeOptions, analyticsFilterStoreIds);
+
+    const formOptions = allForms.slice().sort((a, b) => a.title.localeCompare(b.title)).map(form => ({
+        value: form.id,
+        label: form.title
+    }));
+
+    reportFilterFormIds = setMultiSelectOptions('report-filter-form', formOptions, reportFilterFormIds);
+    analyticsFilterFormIds = setMultiSelectOptions('analytics-filter-form', formOptions, analyticsFilterFormIds);
+
+    const typeMap = new Map();
+    allForms.forEach(form => {
+        const key = getFormTypeKey(form);
+        const label = getFormTypeLabel(form);
+        if (!typeMap.has(key)) {
+            typeMap.set(key, label);
         }
-    }
+    });
+    const typeOptions = Array.from(typeMap.entries()).sort((a, b) => a[1].localeCompare(b[1]))
+        .map(([value, label]) => ({ value, label }));
+    analyticsFilterTypeKeys = setMultiSelectOptions('analytics-filter-type', typeOptions, analyticsFilterTypeKeys);
+
+    updateReportUserFilter();
 }
 
 // Remplit les listes déroulantes des types d'appareils
@@ -967,28 +1302,13 @@ function renderFormsList() {
 // Rendu de la liste des rapports (Stats)
 function renderReportsList() {
     const listContainer = getEl('reports-list');
-    const filterSelect = getEl('report-filter-store');
     const countElement = getEl('reports-count');
 
-    if (!listContainer || !filterSelect) return;
+    if (!listContainer) return;
 
     const searchInput = getEl('report-search-input');
     if (searchInput && searchInput.value !== reportSearchTerm) {
         searchInput.value = reportSearchTerm;
-    }
-
-    if (filterSelect && filterSelect.value !== reportFilterStoreId) {
-        filterSelect.value = reportFilterStoreId;
-    }
-
-    const userSelect = getEl('report-filter-user');
-    if (userSelect && userSelect.value !== reportFilterUserId) {
-        userSelect.value = reportFilterUserId;
-    }
-
-    const formSelect = getEl('report-filter-form');
-    if (formSelect && formSelect.value !== reportFilterFormId) {
-        formSelect.value = reportFilterFormId;
     }
 
     const fromInput = getEl('report-filter-from');
@@ -1001,32 +1321,38 @@ function renderReportsList() {
         toInput.value = reportFilterTo;
     }
 
+    syncMultiSelectSelection('report-filter-store', reportFilterStoreIds);
+    syncMultiSelectSelection('report-filter-user', reportFilterUserIds);
+    syncMultiSelectSelection('report-filter-form', reportFilterFormIds);
+
     if (allReports.length === 0) {
         listContainer.innerHTML = '<p class="text-gray-500 py-4">Aucun rapport soumis pour le moment.</p>';
         if (countElement) countElement.textContent = '0 rapport';
         return;
     }
 
-    const filterStoreId = reportFilterStoreId;
     const normalizedSearch = reportSearchTerm.trim().toLowerCase();
     const fromDate = reportFilterFrom ? new Date(reportFilterFrom) : null;
     if (fromDate) fromDate.setHours(0, 0, 0, 0);
     const toDate = reportFilterTo ? new Date(reportFilterTo) : null;
     if (toDate) toDate.setHours(23, 59, 59, 999);
+    const storeFilterSet = reportFilterStoreIds.length ? new Set(reportFilterStoreIds) : null;
+    const userFilterSet = reportFilterUserIds.length ? new Set(reportFilterUserIds) : null;
+    const formFilterSet = reportFilterFormIds.length ? new Set(reportFilterFormIds) : null;
 
     const hasActiveFilters = normalizedSearch.length > 0
-        || filterStoreId !== 'all'
-        || reportFilterUserId !== 'all'
-        || reportFilterFormId !== 'all'
+        || (storeFilterSet && storeFilterSet.size > 0)
+        || (userFilterSet && userFilterSet.size > 0)
+        || (formFilterSet && formFilterSet.size > 0)
         || Boolean(reportFilterFrom)
         || Boolean(reportFilterTo);
 
     const grouped = new Map();
 
     allReports.forEach(report => {
-        if (filterStoreId !== 'all' && report.storeId !== filterStoreId) return;
-        if (reportFilterUserId !== 'all' && report.userId !== reportFilterUserId) return;
-        if (reportFilterFormId !== 'all' && report.formId !== reportFilterFormId) return;
+        if (storeFilterSet && !storeFilterSet.has(report.storeId)) return;
+        if (userFilterSet && !userFilterSet.has(report.userId)) return;
+        if (formFilterSet && !formFilterSet.has(report.formId)) return;
 
         const reportDateObj = report.timestamp?.toDate ? report.timestamp.toDate() : null;
         if (fromDate && (!reportDateObj || reportDateObj < fromDate)) return;
@@ -1113,7 +1439,7 @@ function renderReportsList() {
         const storeCodeSafe = escapeHtml(storeCode);
         const isOpen = hasActiveFilters || openReportStoreIds.has(group.storeId);
         const toggleIcon = isOpen ? '&minus;' : '+';
-        const wrapperClasses = `divide-y divide-gray-200 ${isOpen ? '' : 'hidden'}`;
+        const wrapperClasses = `${isOpen ? '' : 'hidden'} space-y-4 p-4`;
 
         const reportsHtml = group.reports.map(report => {
             const meta = report._meta || {};
@@ -1125,58 +1451,57 @@ function renderReportsList() {
                 ? ` <span class="text-xs text-gray-400">(${submitterEmailSafe})</span>`
                 : '';
             const formTitleSafe = escapeHtml(meta.formTitle || 'Formulaire inconnu');
+            const storeMetaLabel = meta.storeCode ? `${escapeHtml(meta.storeCode)} • ${storeNameSafe}` : storeNameSafe;
 
             const dataEntries = Object.entries(report.data || {});
             const dataHtml = dataEntries.length > 0
                 ? dataEntries.map(([key, value]) => {
                     const keySafe = escapeHtml(key);
                     if (Array.isArray(value)) {
-                        const listItems = value.map(v => `<li class="ml-4 list-disc">${escapeHtml(v)}</li>`).join('');
-                        return `<li><strong>${keySafe} :</strong><ul>${listItems}</ul></li>`;
+                        const listItems = value.map(v => `<li>• ${escapeHtml(v)}</li>`).join('');
+                        return `<li><strong>${keySafe}</strong><ul>${listItems}</ul></li>`;
                     }
-                    return `<li><strong>${keySafe} :</strong> <span class="font-medium">${escapeHtml(value)}</span></li>`;
+                    return `<li><strong>${keySafe}</strong> : <span class="font-medium">${escapeHtml(value)}</span></li>`;
                 }).join('')
                 : '<li>Aucune donnée</li>';
 
             return `
-                <div class="p-4 bg-white" data-report-id="${report.id}">
-                    <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div class="report-card" data-report-id="${report.id}">
+                    <div class="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
                         <div class="space-y-1">
-                            <p class="font-semibold text-sm text-gray-700">${reportDateSafe}</p>
-                            <p class="text-xs text-gray-500">Soumis par <span class="font-medium">${submitterSafe}</span>${submitterEmailMarkup}</p>
-                            <span class="inline-flex items-center px-2 py-1 rounded-full bg-gray-100 text-gray-700 text-xs font-medium">Formulaire : ${formTitleSafe}</span>
+                            <p class="text-xs uppercase tracking-[0.3em] text-gray-400">${reportDateSafe}</p>
+                            <h4>${formTitleSafe}</h4>
+                            <p class="report-card-meta">Soumis par <span class="font-semibold">${submitterSafe}</span>${submitterEmailMarkup}</p>
+                            <p class="report-card-meta text-xs">${storeMetaLabel}</p>
                         </div>
-                        <div class="flex gap-2">
-                            <button class="edit-report-btn text-xs bg-yellow-500 text-white px-3 py-1 rounded-lg hover:bg-yellow-600 font-medium" data-report-id="${report.id}">Éditer</button>
-                            <button class="delete-report-btn text-xs btn-danger text-white px-3 py-1 rounded-lg hover:bg-red-600 font-medium" data-report-id="${report.id}">Supprimer</button>
+                        <div class="flex flex-wrap gap-2">
+                            <button class="edit-report-btn text-xs bg-yellow-500 text-white px-3 py-1 rounded-lg hover:bg-yellow-600 font-semibold" data-report-id="${report.id}">Éditer</button>
+                            <button class="delete-report-btn text-xs btn-danger text-white px-3 py-1 rounded-lg hover:bg-red-600 font-semibold" data-report-id="${report.id}">Supprimer</button>
                         </div>
                     </div>
-                    <div class="bg-gray-50 p-3 rounded-md mt-3 text-sm text-gray-700">
-                        <h4 class="font-semibold mb-2">Données soumises</h4>
-                        <ul class="list-disc list-inside space-y-1">${dataHtml}</ul>
+                    <div class="bg-gray-50 rounded-xl p-3 mt-3">
+                        <h5 class="text-sm font-semibold text-gray-600 mb-2">Champs renseignés</h5>
+                        <ul class="report-data-list space-y-1">${dataHtml}</ul>
                     </div>
                 </div>
             `;
         }).join('');
 
         return `
-            <div class="border border-gray-200 rounded-lg overflow-hidden" data-report-store-id="${group.storeId}">
-                <div class="bg-gray-50 p-4 border-b border-gray-200">
-                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <button type="button" class="report-store-toggle flex-1 text-left" data-store-id="${group.storeId}">
-                            <div class="flex items-center justify-between gap-3">
-                                <div>
-                                    <h3 class="text-lg font-bold text-primary">${storeNameSafe}</h3>
-                                    ${storeCode ? `<p class="text-sm text-gray-500">Code : ${storeCodeSafe}</p>` : ''}
-                                </div>
-                                <div class="flex items-center gap-2 text-sm text-gray-500">
-                                    <span>${group.reports.length} rapport(s)</span>
-                                    <span class="text-xl font-bold text-secondary">${toggleIcon}</span>
-                                </div>
-                            </div>
-                        </button>
+            <div class="report-store-card" data-report-store-id="${group.storeId}">
+                <button type="button" class="report-store-toggle w-full text-left report-store-header" data-store-id="${group.storeId}">
+                    <div class="flex items-center justify-between gap-3">
+                        <div>
+                            <p class="text-xs uppercase tracking-[0.3em] text-gray-400">Magasin</p>
+                            <h3 class="text-xl font-bold text-primary-dark">${storeNameSafe}</h3>
+                            ${storeCode ? `<p class="text-sm text-gray-500">Code : ${storeCodeSafe}</p>` : ''}
+                        </div>
+                        <div class="text-right">
+                            <p class="text-sm font-semibold text-gray-600">${group.reports.length} rapport(s)</p>
+                            <span class="text-2xl font-black text-secondary">${toggleIcon}</span>
+                        </div>
                     </div>
-                </div>
+                </button>
                 <div class="${wrapperClasses}" data-report-store="${group.storeId}">
                     ${reportsHtml}
                 </div>
@@ -1255,53 +1580,44 @@ function openExcelModal() {
 }
 
 function populateExcelModalFilters() {
-    const storeSelect = getEl('excel-filter-store');
-    const userSelect = getEl('excel-filter-user');
-    const formSelect = getEl('excel-filter-form');
     const fromInput = getEl('excel-filter-from');
     const toInput = getEl('excel-filter-to');
+    const storeOptions = allStores.slice().sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(store => {
+        const code = store.code ? ` (${store.code})` : '';
+        return { value: store.id, label: `${store.name || 'Magasin'}${code}` };
+    });
+    const userOptions = allUsers.slice().sort((a, b) => (getDisplayName(a) || a.email || '').localeCompare(getDisplayName(b) || b.email || '')).map(user => ({
+        value: user.id,
+        label: getDisplayName(user) || user.email || 'Utilisateur'
+    }));
+    const formOptions = allForms.slice().sort((a, b) => a.title.localeCompare(b.title)).map(form => ({
+        value: form.id,
+        label: form.title
+    }));
 
-    if (storeSelect) {
-        storeSelect.innerHTML = '<option value="all">Tous les magasins</option>';
-        allStores.slice().sort((a, b) => (a.name || '').localeCompare(b.name || '')).forEach(store => {
-            const nameLabel = escapeHtml(store.name || 'Magasin');
-            const codeLabel = store.code ? ` (${escapeHtml(store.code)})` : '';
-            storeSelect.innerHTML += `<option value="${store.id}">${nameLabel}${codeLabel}</option>`;
-        });
-        if (Array.from(storeSelect.options).some(opt => opt.value === reportFilterStoreId)) {
-            storeSelect.value = reportFilterStoreId;
-        } else {
-            storeSelect.value = 'all';
-        }
-    }
+    const storeDefaults = excelFilterStoreIds.length ? excelFilterStoreIds : reportFilterStoreIds;
+    const userDefaults = excelFilterUserIds.length ? excelFilterUserIds : reportFilterUserIds;
+    const formDefaults = excelFilterFormIds.length ? excelFilterFormIds : reportFilterFormIds;
 
-    if (userSelect) {
-        userSelect.innerHTML = '<option value="all">Tous les intervenants</option>';
-        allUsers.slice().sort((a, b) => (getDisplayName(a) || a.email || '').localeCompare(getDisplayName(b) || b.email || '')).forEach(user => {
-            const label = escapeHtml(getDisplayName(user) || user.email || 'Utilisateur');
-            userSelect.innerHTML += `<option value="${user.id}">${label}</option>`;
-        });
-        if (Array.from(userSelect.options).some(opt => opt.value === reportFilterUserId)) {
-            userSelect.value = reportFilterUserId;
-        } else {
-            userSelect.value = 'all';
-        }
-    }
+    setMultiSelectOptions('excel-filter-store', storeOptions, [...storeDefaults]);
+    setMultiSelectOptions('excel-filter-user', userOptions, [...userDefaults]);
+    setMultiSelectOptions('excel-filter-form', formOptions, [...formDefaults]);
 
-    if (formSelect) {
-        formSelect.innerHTML = '<option value="all">Tous les formulaires</option>';
-        allForms.slice().sort((a, b) => a.title.localeCompare(b.title)).forEach(form => {
-            formSelect.innerHTML += `<option value="${form.id}">${escapeHtml(form.title)}</option>`;
-        });
-        if (Array.from(formSelect.options).some(opt => opt.value === reportFilterFormId)) {
-            formSelect.value = reportFilterFormId;
-        } else {
-            formSelect.value = 'all';
-        }
-    }
+    if (fromInput) fromInput.value = excelFilterFrom || reportFilterFrom || '';
+    if (toInput) toInput.value = excelFilterTo || reportFilterTo || '';
+}
 
-    if (fromInput) fromInput.value = reportFilterFrom || '';
-    if (toInput) toInput.value = reportFilterTo || '';
+function resetExcelModalFilters() {
+    excelFilterStoreIds = [];
+    excelFilterUserIds = [];
+    excelFilterFormIds = [];
+    excelFilterFrom = '';
+    excelFilterTo = '';
+    ['excel-filter-store', 'excel-filter-user', 'excel-filter-form'].forEach(clearMultiSelect);
+    const fromInput = getEl('excel-filter-from');
+    const toInput = getEl('excel-filter-to');
+    if (fromInput) fromInput.value = '';
+    if (toInput) toInput.value = '';
 }
 
 function filterReportsForExport(filters) {
@@ -1310,10 +1626,14 @@ function filterReportsForExport(filters) {
     const toDate = filters.to ? new Date(filters.to) : null;
     if (toDate) toDate.setHours(23, 59, 59, 999);
 
+    const storeSet = filters.storeIds && filters.storeIds.length ? new Set(filters.storeIds) : null;
+    const userSet = filters.userIds && filters.userIds.length ? new Set(filters.userIds) : null;
+    const formSet = filters.formIds && filters.formIds.length ? new Set(filters.formIds) : null;
+
     return allReports.filter(report => {
-        if (filters.storeId !== 'all' && report.storeId !== filters.storeId) return false;
-        if (filters.userId !== 'all' && report.userId !== filters.userId) return false;
-        if (filters.formId !== 'all' && report.formId !== filters.formId) return false;
+        if (storeSet && !storeSet.has(report.storeId)) return false;
+        if (userSet && !userSet.has(report.userId)) return false;
+        if (formSet && !formSet.has(report.formId)) return false;
 
         const reportDateObj = report.timestamp?.toDate ? report.timestamp.toDate() : null;
         if (fromDate && (!reportDateObj || reportDateObj < fromDate)) return false;
@@ -1374,19 +1694,22 @@ function handleExcelExport(e) {
         return;
     }
 
-    const storeSelectEl = getEl('excel-filter-store');
-    const userSelectEl = getEl('excel-filter-user');
-    const formSelectEl = getEl('excel-filter-form');
     const fromInput = getEl('excel-filter-from');
     const toInput = getEl('excel-filter-to');
 
     const filters = {
-        storeId: storeSelectEl ? storeSelectEl.value : 'all',
-        userId: userSelectEl ? userSelectEl.value : 'all',
-        formId: formSelectEl ? formSelectEl.value : 'all',
+        storeIds: getMultiSelectSelectedValues('excel-filter-store'),
+        userIds: getMultiSelectSelectedValues('excel-filter-user'),
+        formIds: getMultiSelectSelectedValues('excel-filter-form'),
         from: fromInput ? fromInput.value : '',
         to: toInput ? toInput.value : ''
     };
+
+    excelFilterStoreIds = [...filters.storeIds];
+    excelFilterUserIds = [...filters.userIds];
+    excelFilterFormIds = [...filters.formIds];
+    excelFilterFrom = filters.from;
+    excelFilterTo = filters.to;
 
     const filteredReports = filterReportsForExport(filters);
     if (filteredReports.length === 0) {
@@ -1495,6 +1818,37 @@ async function handleEditReportSubmit(e) {
 }
 
 // Rendu de la liste des utilisateurs (Admin)
+function updateUserFilterOptions() {
+    const roleOptions = Array.from(new Set(allUsers.map(user => (user.role || 'user'))))
+        .sort()
+        .map(value => ({ value, label: formatRoleLabel(value) }));
+    userFilterRoles = setMultiSelectOptions('user-filter-role', roleOptions, userFilterRoles);
+
+    const fonctionMap = new Map();
+    allUsers.forEach(user => {
+        const raw = (user.fonction || '').trim();
+        const key = raw.length ? raw.toLowerCase() : 'non-defini';
+        const label = raw.length ? raw : 'Non renseigné';
+        if (!fonctionMap.has(key)) {
+            fonctionMap.set(key, label);
+        }
+    });
+    const fonctionOptions = Array.from(fonctionMap.entries())
+        .sort((a, b) => a[1].localeCompare(b[1]))
+        .map(([value, label]) => ({ value, label }));
+    userFilterFunctions = setMultiSelectOptions('user-filter-function', fonctionOptions, userFilterFunctions);
+
+    const statusMap = new Map();
+    allUsers.forEach(user => {
+        const statusKey = getUserStatusKey(user);
+        if (!statusMap.has(statusKey)) {
+            statusMap.set(statusKey, getUserStatusLabel(statusKey));
+        }
+    });
+    const statusOptions = Array.from(statusMap.entries()).map(([value, label]) => ({ value, label }));
+    userFilterStatuses = setMultiSelectOptions('user-filter-status', statusOptions, userFilterStatuses);
+}
+
 function renderUsersList(users) {
     const listContainer = getEl('users-list');
     const countElement = getEl('users-count');
@@ -1522,10 +1876,21 @@ function renderUsersList(users) {
     }
 
     updateReportUserFilter();
+    updateUserFilterOptions();
 
     const normalizedTerm = userSearchTerm.trim().toLowerCase();
+    const roleFilterSet = userFilterRoles.length ? new Set(userFilterRoles) : null;
+    const fonctionFilterSet = userFilterFunctions.length ? new Set(userFilterFunctions) : null;
+    const statusFilterSet = userFilterStatuses.length ? new Set(userFilterStatuses) : null;
     const filteredUsers = allUsers
         .filter(user => {
+            if (roleFilterSet && !roleFilterSet.has(user.role || 'user')) return false;
+            const fonctionKey = (user.fonction && user.fonction.trim().length)
+                ? user.fonction.trim().toLowerCase()
+                : 'non-defini';
+            if (fonctionFilterSet && !fonctionFilterSet.has(fonctionKey)) return false;
+            const statusKey = getUserStatusKey(user);
+            if (statusFilterSet && !statusFilterSet.has(statusKey)) return false;
             if (!normalizedTerm) return true;
             const name = (getDisplayName(user) || '').toLowerCase();
             const email = (user.email || '').toLowerCase();
@@ -1577,9 +1942,14 @@ function renderUsersList(users) {
                     <option value="admin" ${userRole === 'admin' ? 'selected' : ''}>Administrateur</option>
                 `;
 
-        const statusBadge = user.mustChangePassword
-            ? '<span class="badge bg-secondary text-white">MDP à changer</span>'
-            : '<span class="badge bg-emerald-100 text-emerald-800">Actif</span>';
+        const statusKey = getUserStatusKey(user);
+        const statusLabel = getUserStatusLabel(statusKey);
+        let statusBadge = '<span class="badge bg-emerald-100 text-emerald-800">' + statusLabel + '</span>';
+        if (statusKey === 'pending' || statusKey === 'invited') {
+            statusBadge = `<span class="badge bg-amber-100 text-amber-800">${statusLabel}</span>`;
+        } else if (statusKey === 'pending-password') {
+            statusBadge = '<span class="badge bg-secondary text-white">MDP à changer</span>';
+        }
 
         const resetButtonLabel = user.mustChangePassword
             ? 'Réinitialisation en attente'
@@ -1588,10 +1958,10 @@ function renderUsersList(users) {
         const resetButtonDisabled = user.mustChangePassword ? 'disabled' : '';
 
         const roleBadge = userRole === 'admin'
-            ? '<span class="badge bg-primary text-white">Admin</span>'
+            ? '<span class="badge bg-primary text-white">' + formatRoleLabel(userRole) + '</span>'
             : (userRole === 'new'
-                ? '<span class="badge bg-amber-100 text-amber-800">En attente</span>'
-                : '<span class="badge bg-emerald-100 text-emerald-800">Utilisateur</span>');
+                ? '<span class="badge bg-amber-100 text-amber-800">' + formatRoleLabel(userRole) + '</span>'
+                : '<span class="badge bg-emerald-100 text-emerald-800">' + formatRoleLabel(userRole) + '</span>');
 
         const baseClasses = ['user-row', 'border', 'border-gray-200', 'rounded-xl', 'p-4', 'space-y-3', 'shadow-sm', 'bg-white'];
         if (isCurrentUser) baseClasses.push('border-emerald-400', 'shadow-md');
@@ -1681,9 +2051,342 @@ function renderEquipmentTypesList() {
                     Supprimer
                 </button>
             </div>
-        </div>
+            </div>
         `;
     }).join('');
+
+    updateAnalyticsDashboard();
+}
+
+function getFilteredReportsForAnalytics() {
+    const storeSet = analyticsFilterStoreIds.length ? new Set(analyticsFilterStoreIds) : null;
+    const userSet = analyticsFilterUserIds.length ? new Set(analyticsFilterUserIds) : null;
+    const formSet = analyticsFilterFormIds.length ? new Set(analyticsFilterFormIds) : null;
+    const typeSet = analyticsFilterTypeKeys.length ? new Set(analyticsFilterTypeKeys) : null;
+    const fromDate = analyticsFilterFrom ? new Date(analyticsFilterFrom) : null;
+    if (fromDate) fromDate.setHours(0, 0, 0, 0);
+    const toDate = analyticsFilterTo ? new Date(analyticsFilterTo) : null;
+    if (toDate) toDate.setHours(23, 59, 59, 999);
+
+    return allReports.filter(report => {
+        if (storeSet && !storeSet.has(report.storeId)) return false;
+        if (userSet && !userSet.has(report.userId)) return false;
+        if (formSet && !formSet.has(report.formId)) return false;
+        if (typeSet) {
+            const form = allForms.find(f => f.id === report.formId);
+            if (!typeSet.has(getFormTypeKey(form))) return false;
+        }
+        const reportDate = report.timestamp?.toDate ? report.timestamp.toDate() : null;
+        if (fromDate && (!reportDate || reportDate < fromDate)) return false;
+        if (toDate && (!reportDate || reportDate > toDate)) return false;
+        return true;
+    });
+}
+
+function getFilteredFormsForAnalytics() {
+    const fromDate = analyticsFilterFrom ? new Date(analyticsFilterFrom) : null;
+    if (fromDate) fromDate.setHours(0, 0, 0, 0);
+    const toDate = analyticsFilterTo ? new Date(analyticsFilterTo) : null;
+    if (toDate) toDate.setHours(23, 59, 59, 999);
+
+    return allForms.filter(form => {
+        const createdAt = normalizeTimestamp(form.createdAt);
+        if (!createdAt) {
+            return !(fromDate || toDate);
+        }
+        if (fromDate && createdAt < fromDate) return false;
+        if (toDate && createdAt > toDate) return false;
+        return true;
+    });
+}
+
+function updateAnalyticsDashboard() {
+    if (document.body.dataset.role !== 'admin') return;
+    const filteredReports = getFilteredReportsForAnalytics();
+    const filteredForms = getFilteredFormsForAnalytics();
+    updateAnalyticsKpis(filteredReports);
+    updateVisitsCharts(filteredReports);
+    updateTopStoresChart(filteredReports);
+    updateTopFormsChart(filteredReports);
+    updateFormsEvolutionChart(filteredReports, filteredForms);
+    updateFormsDistributionChart(filteredReports);
+}
+
+function updateAnalyticsKpis(reports) {
+    const visitsValue = reports.filter(report => {
+        const date = report.timestamp?.toDate ? report.timestamp.toDate() : null;
+        if (!date) return false;
+        const threshold = new Date();
+        threshold.setDate(threshold.getDate() - 29);
+        threshold.setHours(0, 0, 0, 0);
+        return date >= threshold;
+    }).length;
+    const storesValue = new Set(reports.map(report => report.storeId)).size;
+    const formsValue = new Set(reports.map(report => report.formId)).size;
+
+    const now = new Date();
+    const currentStart = new Date(now);
+    currentStart.setDate(now.getDate() - 6);
+    currentStart.setHours(0, 0, 0, 0);
+    const previousStart = new Date(now);
+    previousStart.setDate(now.getDate() - 13);
+    previousStart.setHours(0, 0, 0, 0);
+    const previousEnd = new Date(now);
+    previousEnd.setDate(now.getDate() - 7);
+    previousEnd.setHours(23, 59, 59, 999);
+
+    const currentCount = reports.filter(report => {
+        const date = report.timestamp?.toDate ? report.timestamp.toDate() : null;
+        return date && date >= currentStart;
+    }).length;
+    const previousCount = reports.filter(report => {
+        const date = report.timestamp?.toDate ? report.timestamp.toDate() : null;
+        return date && date >= previousStart && date <= previousEnd;
+    }).length;
+    const trend = previousCount === 0
+        ? (currentCount > 0 ? 100 : 0)
+        : Math.round(((currentCount - previousCount) / previousCount) * 100);
+
+    const visitsEl = getEl('kpi-visits');
+    const storesEl = getEl('kpi-stores');
+    const formsEl = getEl('kpi-forms');
+    const trendEl = getEl('kpi-trend');
+    if (visitsEl) visitsEl.textContent = visitsValue.toString();
+    if (storesEl) storesEl.textContent = storesValue.toString();
+    if (formsEl) formsEl.textContent = formsValue.toString();
+    if (trendEl) trendEl.textContent = `${trend >= 0 ? '+' : ''}${trend}%`;
+}
+
+function updateVisitsCharts(reports) {
+    updateSimpleChart('chart-visits-daily', 'bar', ...buildPeriodSeries(reports, 'day', 10), '#00594E');
+    updateSimpleChart('chart-visits-weekly', 'line', ...buildPeriodSeries(reports, 'week', 8), '#E56A54');
+    updateSimpleChart('chart-visits-monthly', 'line', ...buildPeriodSeries(reports, 'month', 6), '#1F2933');
+}
+
+function buildPeriodSeries(reports, unit, limit) {
+    const buckets = new Map();
+    reports.forEach(report => {
+        const date = report.timestamp?.toDate ? report.timestamp.toDate() : null;
+        if (!date) return;
+        let bucket;
+        if (unit === 'day') {
+            bucket = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+        } else if (unit === 'week') {
+            bucket = startOfWeek(date);
+        } else {
+            bucket = startOfMonth(date);
+        }
+        const key = bucket.toISOString();
+        buckets.set(key, (buckets.get(key) || 0) + 1);
+    });
+    const sorted = Array.from(buckets.entries()).sort((a, b) => new Date(a[0]) - new Date(b[0])).slice(-limit);
+    const labels = sorted.map(([iso]) => formatPeriodLabel(new Date(iso), unit));
+    const data = sorted.map(([, count]) => count);
+    return [labels, data];
+}
+
+function formatPeriodLabel(date, unit) {
+    if (!(date instanceof Date)) return '';
+    const options = { month: 'short', day: '2-digit' };
+    switch (unit) {
+        case 'day':
+            return date.toLocaleDateString('fr-FR', options);
+        case 'week':
+            return `Semaine du ${date.toLocaleDateString('fr-FR', options)}`;
+        case 'month':
+        default:
+            return date.toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' });
+    }
+}
+
+function updateTopStoresChart(reports) {
+    const counts = new Map();
+    reports.forEach(report => {
+        counts.set(report.storeId, (counts.get(report.storeId) || 0) + 1);
+    });
+    const top = Array.from(counts.entries()).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    const labels = top.map(([storeId]) => {
+        const store = allStores.find(s => s.id === storeId);
+        return store ? store.name : 'Magasin';
+    });
+    const data = top.map(([, count]) => count);
+    updateSimpleChart('chart-top-stores', 'bar', labels, data, '#00594E');
+}
+
+function updateTopFormsChart(reports) {
+    const counts = new Map();
+    reports.forEach(report => {
+        counts.set(report.formId, (counts.get(report.formId) || 0) + 1);
+    });
+    const top = Array.from(counts.entries()).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    const labels = top.map(([formId]) => {
+        const form = allForms.find(f => f.id === formId);
+        return form ? form.title : 'Formulaire';
+    });
+    const data = top.map(([, count]) => count);
+    updateSimpleChart('chart-top-forms', 'bar', labels, data, '#E56A54');
+}
+
+function updateFormsEvolutionChart(reports, forms) {
+    const creationSeries = buildMonthlySeries(forms, (form) => normalizeTimestamp(form.createdAt), 12);
+    const validationSeries = buildMonthlySeries(reports, (report) => report.timestamp?.toDate ? report.timestamp.toDate() : null, 12);
+    const mergedKeys = Array.from(new Set([...(creationSeries.keys || []), ...(validationSeries.keys || [])]))
+        .sort((a, b) => new Date(a) - new Date(b))
+        .slice(-12);
+    const labels = mergedKeys.map(key => formatPeriodLabel(new Date(key), 'month'));
+    const creationData = mergedKeys.map(key => {
+        const idx = creationSeries.keys ? creationSeries.keys.indexOf(key) : -1;
+        return idx >= 0 ? creationSeries.data[idx] : 0;
+    });
+    const validationData = mergedKeys.map(key => {
+        const idx = validationSeries.keys ? validationSeries.keys.indexOf(key) : -1;
+        return idx >= 0 ? validationSeries.data[idx] : 0;
+    });
+    updateMultiDatasetChart('chart-forms-evolution', labels, [
+        {
+            label: 'Formulaires créés',
+            data: creationData,
+            borderColor: '#E56A54',
+            backgroundColor: 'rgba(229,106,84,0.2)'
+        },
+        {
+            label: 'Formulaires validés',
+            data: validationData,
+            borderColor: '#00594E',
+            backgroundColor: 'rgba(0,89,78,0.2)'
+        }
+    ]);
+}
+
+function buildMonthlySeries(items, getDateFn, limit) {
+    const buckets = new Map();
+    items.forEach(item => {
+        const date = getDateFn(item);
+        if (!date) return;
+        const bucket = startOfMonth(date);
+        const key = bucket.toISOString();
+        buckets.set(key, (buckets.get(key) || 0) + 1);
+    });
+    const keys = Array.from(buckets.keys()).sort((a, b) => new Date(a) - new Date(b)).slice(-limit);
+    return {
+        keys,
+        labels: keys.map(key => formatPeriodLabel(new Date(key), 'month')),
+        data: keys.map(key => buckets.get(key) || 0)
+    };
+}
+
+function updateFormsDistributionChart(reports) {
+    const counts = new Map();
+    reports.forEach(report => {
+        const form = allForms.find(f => f.id === report.formId);
+        const label = getFormTypeLabel(form);
+        counts.set(label, (counts.get(label) || 0) + 1);
+    });
+    const labels = Array.from(counts.keys());
+    const data = labels.map(label => counts.get(label));
+    updatePieChart('chart-forms-distribution', labels, data);
+}
+
+function updateSimpleChart(canvasId, chartType, labels = [], data = [], color = '#00594E') {
+    const ctx = document.getElementById(canvasId);
+    if (!ctx || typeof Chart === 'undefined') return;
+    const hasData = Array.isArray(labels) && labels.length > 0 && Array.isArray(data) && data.length > 0;
+    const safeLabels = hasData ? labels : ['Aucune donnée'];
+    const safeData = hasData ? data : [0];
+    const fillColor = chartType === 'bar' ? color : applyAlphaToColor(color, 0.25);
+    const dataset = {
+        label: 'Rapports',
+        data: safeData,
+        borderColor: color,
+        backgroundColor: fillColor,
+        tension: 0.3,
+        fill: chartType !== 'bar'
+    };
+    if (!analyticsCharts[canvasId]) {
+        analyticsCharts[canvasId] = new Chart(ctx, {
+            type: chartType,
+            data: { labels: safeLabels, datasets: [dataset] },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, precision: 0 } }
+            }
+        });
+    } else {
+        const chart = analyticsCharts[canvasId];
+        chart.data.labels = safeLabels;
+        if (!chart.data.datasets.length) {
+            chart.data.datasets.push(dataset);
+        }
+        chart.data.datasets[0].data = safeData;
+        chart.data.datasets[0].borderColor = color;
+        chart.data.datasets[0].backgroundColor = fillColor;
+        chart.update();
+    }
+}
+
+function updateMultiDatasetChart(canvasId, labels = [], datasetsConfig = []) {
+    const ctx = document.getElementById(canvasId);
+    if (!ctx || typeof Chart === 'undefined') return;
+    const hasLabels = Array.isArray(labels) && labels.length > 0;
+    const safeLabels = hasLabels ? labels : ['Aucune donnée'];
+    const safeDatasets = datasetsConfig.map(cfg => ({
+        label: cfg.label,
+        data: hasLabels && Array.isArray(cfg.data) && cfg.data.length ? cfg.data : [0],
+        borderColor: cfg.borderColor,
+        backgroundColor: cfg.backgroundColor,
+        tension: 0.3,
+        fill: true
+    }));
+    if (!analyticsCharts[canvasId]) {
+        analyticsCharts[canvasId] = new Chart(ctx, {
+            type: 'line',
+            data: { labels: safeLabels, datasets: safeDatasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: true } },
+                scales: { y: { beginAtZero: true, precision: 0 } }
+            }
+        });
+    } else {
+        const chart = analyticsCharts[canvasId];
+        chart.data.labels = safeLabels;
+        chart.data.datasets = safeDatasets;
+        chart.update();
+    }
+}
+
+function updatePieChart(canvasId, labels, data) {
+    const ctx = document.getElementById(canvasId);
+    if (!ctx || typeof Chart === 'undefined') return;
+    const safeLabels = labels.length ? labels : ['Aucune donnée'];
+    const safeData = labels.length ? data : [1];
+    const colors = ['#00594E', '#E56A54', '#FFC857', '#1F2933', '#6B7280', '#A78BFA'];
+    if (!analyticsCharts[canvasId]) {
+        analyticsCharts[canvasId] = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: safeLabels,
+                datasets: [{
+                    data: safeData,
+                    backgroundColor: colors,
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+    } else {
+        const chart = analyticsCharts[canvasId];
+        chart.data.labels = safeLabels;
+        chart.data.datasets[0].data = safeData;
+        chart.update();
+    }
 }
 
 // Rendu du formulaire d'intervention dynamique
@@ -1764,6 +2467,7 @@ function renderInterventionForm(formId) {
 
 // Fonction principale qui attache tous les écouteurs statiques au démarrage.
 function initializeAppEventListeners() {
+    initializeMultiSelectControls();
     // Authentification
     setupAuthEventListeners();
 
@@ -1790,6 +2494,9 @@ function initializeAppEventListeners() {
 
     // Page Rapports
     setupReportEventListeners();
+
+    // Page Analytics
+    setupAnalyticsEventListeners();
 
     // Modales
     setupModalEventListeners();
@@ -1920,6 +2627,22 @@ function setupAdminEventListeners() {
         });
     }
 
+    const adminFilterSelects = [
+        { id: 'user-filter-role', setter: (values) => { userFilterRoles = values; } },
+        { id: 'user-filter-function', setter: (values) => { userFilterFunctions = values; } },
+        { id: 'user-filter-status', setter: (values) => { userFilterStatuses = values; } }
+    ];
+
+    adminFilterSelects.forEach(({ id, setter }) => {
+        const select = getEl(id);
+        if (select) {
+            select.addEventListener('change', () => {
+                setter(getMultiSelectSelectedValues(id));
+                renderUsersList(allUsers);
+            });
+        }
+    });
+
     // Délégation pour la liste des utilisateurs
     getEl('users-list').addEventListener('click', handleUsersListClick);
 
@@ -1942,14 +2665,6 @@ function setupAdminEventListeners() {
 
 // Groupe: Page Rapports
 function setupReportEventListeners() {
-    const filterSelect = getEl('report-filter-store');
-    if (filterSelect) {
-        filterSelect.addEventListener('change', (e) => {
-            reportFilterStoreId = e.target.value || 'all';
-            renderReportsList();
-        });
-    }
-
     const searchInput = getEl('report-search-input');
     if (searchInput) {
         searchInput.addEventListener('input', (e) => {
@@ -1957,19 +2672,26 @@ function setupReportEventListeners() {
             renderReportsList();
         });
     }
+    const storeSelect = getEl('report-filter-store');
+    if (storeSelect) {
+        storeSelect.addEventListener('change', () => {
+            reportFilterStoreIds = getMultiSelectSelectedValues('report-filter-store');
+            renderReportsList();
+        });
+    }
 
     const userSelect = getEl('report-filter-user');
     if (userSelect) {
-        userSelect.addEventListener('change', (e) => {
-            reportFilterUserId = e.target.value || 'all';
+        userSelect.addEventListener('change', () => {
+            reportFilterUserIds = getMultiSelectSelectedValues('report-filter-user');
             renderReportsList();
         });
     }
 
     const formSelect = getEl('report-filter-form');
     if (formSelect) {
-        formSelect.addEventListener('change', (e) => {
-            reportFilterFormId = e.target.value || 'all';
+        formSelect.addEventListener('change', () => {
+            reportFilterFormIds = getMultiSelectSelectedValues('report-filter-form');
             renderReportsList();
         });
     }
@@ -1990,19 +2712,25 @@ function setupReportEventListeners() {
         });
     }
 
+    setupDatePresetControls('report-date-presets', (from, to) => {
+        reportFilterFrom = from;
+        reportFilterTo = to;
+        renderReportsList();
+    });
+
     const resetBtn = getEl('report-reset-filters');
     if (resetBtn) {
         resetBtn.addEventListener('click', (e) => {
             e.preventDefault();
             reportSearchTerm = '';
-            reportFilterStoreId = 'all';
-            reportFilterUserId = 'all';
-            reportFilterFormId = 'all';
+            reportFilterStoreIds = [];
+            reportFilterUserIds = [];
+            reportFilterFormIds = [];
             reportFilterFrom = '';
             reportFilterTo = '';
-            if (filterSelect) filterSelect.value = 'all';
-            if (userSelect) userSelect.value = 'all';
-            if (formSelect) formSelect.value = 'all';
+            clearMultiSelect('report-filter-store');
+            clearMultiSelect('report-filter-user');
+            clearMultiSelect('report-filter-form');
             if (searchInput) searchInput.value = '';
             if (fromInput) fromInput.value = '';
             if (toInput) toInput.value = '';
@@ -2028,6 +2756,89 @@ function setupReportEventListeners() {
     const excelForm = getEl('excel-export-form');
     if (excelForm) {
         excelForm.addEventListener('submit', handleExcelExport);
+    }
+
+    setupDatePresetControls('excel-date-presets', (from, to) => {
+        const fromInput = getEl('excel-filter-from');
+        const toInput = getEl('excel-filter-to');
+        if (fromInput) fromInput.value = from;
+        if (toInput) toInput.value = to;
+    });
+}
+
+function setupAnalyticsEventListeners() {
+    const storeSelect = getEl('analytics-filter-store');
+    if (storeSelect) {
+        storeSelect.addEventListener('change', () => {
+            analyticsFilterStoreIds = getMultiSelectSelectedValues('analytics-filter-store');
+            updateAnalyticsDashboard();
+        });
+    }
+
+    const userSelect = getEl('analytics-filter-user');
+    if (userSelect) {
+        userSelect.addEventListener('change', () => {
+            analyticsFilterUserIds = getMultiSelectSelectedValues('analytics-filter-user');
+            updateAnalyticsDashboard();
+        });
+    }
+
+    const formSelect = getEl('analytics-filter-form');
+    if (formSelect) {
+        formSelect.addEventListener('change', () => {
+            analyticsFilterFormIds = getMultiSelectSelectedValues('analytics-filter-form');
+            updateAnalyticsDashboard();
+        });
+    }
+
+    const typeSelect = getEl('analytics-filter-type');
+    if (typeSelect) {
+        typeSelect.addEventListener('change', () => {
+            analyticsFilterTypeKeys = getMultiSelectSelectedValues('analytics-filter-type');
+            updateAnalyticsDashboard();
+        });
+    }
+
+    const fromInput = getEl('analytics-filter-from');
+    if (fromInput) {
+        fromInput.addEventListener('change', (e) => {
+            analyticsFilterFrom = e.target.value;
+            updateAnalyticsDashboard();
+        });
+    }
+
+    const toInput = getEl('analytics-filter-to');
+    if (toInput) {
+        toInput.addEventListener('change', (e) => {
+            analyticsFilterTo = e.target.value;
+            updateAnalyticsDashboard();
+        });
+    }
+
+    setupDatePresetControls('analytics-date-presets', (from, to) => {
+        analyticsFilterFrom = from;
+        analyticsFilterTo = to;
+        updateAnalyticsDashboard();
+    });
+
+    const resetBtn = getEl('analytics-reset-filters');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            analyticsFilterStoreIds = [];
+            analyticsFilterUserIds = [];
+            analyticsFilterFormIds = [];
+            analyticsFilterTypeKeys = [];
+            analyticsFilterFrom = '';
+            analyticsFilterTo = '';
+            clearMultiSelect('analytics-filter-store');
+            clearMultiSelect('analytics-filter-user');
+            clearMultiSelect('analytics-filter-form');
+            clearMultiSelect('analytics-filter-type');
+            if (fromInput) fromInput.value = '';
+            if (toInput) toInput.value = '';
+            updateAnalyticsDashboard();
+        });
     }
 }
 
@@ -2197,6 +3008,10 @@ function closeModal(modalEl) {
     if (modalEl.id === 'edit-report-modal') {
         getEl('edit-report-fields').innerHTML = '';
         getEl('edit-report-id').value = '';
+    }
+
+    if (modalEl.id === 'excel-modal') {
+        resetExcelModalFilters();
     }
 }
 
@@ -2708,16 +3523,17 @@ async function handleSaveForm(e) {
     }
 
     const formData = { title, fields };
+    const now = new Date();
 
     try {
         if (formId) {
             // Modification
             const docRef = doc(formsCollection, formId);
-            await updateDoc(docRef, formData);
+            await updateDoc(docRef, { ...formData, updatedAt: now });
             showMessage(`Formulaire "${title}" mis à jour !`, 'success');
         } else {
             // Création
-            await addDoc(formsCollection, formData);
+            await addDoc(formsCollection, { ...formData, createdAt: now, updatedAt: now });
             showMessage(`Formulaire "${title}" créé !`, 'success');
         }
 
